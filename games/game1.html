@@ -1,15 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
+<meta charset="UTF-8">
+<title>2048 Game</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+
+<style>
+#board {
+  width: 320px;
+  height: 320px;
+  margin: 20px auto;
+  background: #bbada0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.tile {
+  width: 70px;
+  height: 70px;
+  background: #cdc1b4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+.t2 { background: #eee4da; }
+.t4 { background: #ede0c8; }
+.t8 { background: #f2b179; color: white; }
+.t16 { background: #f59563; color: white; }
+.t32 { background: #f67c5f; color: white; }
+.t64 { background: #f65e3b; color: white; }
+.t128 { background: #edcf72; }
+.t256 { background: #edcc61; }
+.t512 { background: #edc850; }
+.t1024 { background: #edc53f; }
+.t2048 { background: #edc22e; }
+
+#score {
+  text-align: center;
+  margin-top: 10px;
+}
+</style>
+
 </head>
 
 <body>
 
 <header class="main-header">
   <div class="logo">🎮 GameHub</div>
-
   <nav>
     <a href="../index.html">Home</a>
     <a href="../more.html">More</a>
@@ -18,8 +61,198 @@
 
 <section class="game-container">
   <h2>2048</h2>
-  <p>Game will be added here.</p>
+  <div id="score">Score: 0</div>
+  <div id="board"></div>
+  <button onclick="startGame()">Restart</button>
 </section>
+
+<script>
+let board = [];
+let score = 0;
+let best = localStorage.getItem("best2048") || 0;
+let gameOver = false;
+
+function startGame() {
+  board = Array(4).fill().map(() => Array(4).fill(0));
+  score = 0;
+  gameOver = false;
+  updateScore();
+  addTile();
+  addTile();
+  draw();
+}
+
+function updateScore() {
+  document.getElementById("score").innerText = "Score: " + score + " | Best: " + best;
+}
+
+function addTile() {
+  let empty = [];
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (board[r][c] === 0) empty.push({r, c});
+    }
+  }
+
+  if (empty.length) {
+    let spot = empty[Math.floor(Math.random() * empty.length)];
+    board[spot.r][spot.c] = Math.random() > 0.1 ? 2 : 4;
+  }
+}
+
+function draw() {
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
+
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      let tile = document.createElement("div");
+      tile.className = "tile";
+
+      let val = board[r][c];
+      if (val) {
+        tile.textContent = val;
+        tile.classList.add("t" + val);
+      }
+
+      boardDiv.appendChild(tile);
+    }
+  }
+}
+
+function moveLeft() {
+  let moved = false;
+
+  for (let r = 0; r < 4; r++) {
+    let row = board[r].filter(v => v);
+
+    for (let i = 0; i < row.length - 1; i++) {
+      if (row[i] === row[i + 1]) {
+        row[i] *= 2;
+        score += row[i];
+        row[i + 1] = 0;
+        moved = true;
+      }
+    }
+
+    row = row.filter(v => v);
+    while (row.length < 4) row.push(0);
+
+    if (JSON.stringify(board[r]) !== JSON.stringify(row)) moved = true;
+
+    board[r] = row;
+  }
+
+  return moved;
+}
+
+function rotate() {
+  let newBoard = Array(4).fill().map(() => Array(4).fill(0));
+
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      newBoard[c][3 - r] = board[r][c];
+    }
+  }
+
+  board = newBoard;
+}
+
+function checkGameOver() {
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (board[r][c] === 0) return false;
+      if (c < 3 && board[r][c] === board[r][c + 1]) return false;
+      if (r < 3 && board[r][c] === board[r + 1][c]) return false;
+    }
+  }
+
+  if (score > best) {
+    best = score;
+    localStorage.setItem("best2048", best);
+  }
+
+  setTimeout(() => alert("Game Over!"), 100);
+  gameOver = true;
+  return true;
+}
+
+function handleMove(dir) {
+  if (gameOver) return;
+
+  let moved = false;
+
+  if (dir === "ArrowLeft") moved = moveLeft();
+
+  if (dir === "ArrowRight") {
+    rotate(); rotate();
+    moved = moveLeft();
+    rotate(); rotate();
+  }
+
+  if (dir === "ArrowUp") {
+    rotate(); rotate(); rotate();
+    moved = moveLeft();
+    rotate();
+  }
+
+  if (dir === "ArrowDown") {
+    rotate();
+    moved = moveLeft();
+    rotate(); rotate(); rotate();
+  }
+
+  if (moved) {
+    addTile();
+    updateScore();
+    draw();
+    checkGameOver();
+  }
+}
+
+/* KEYBOARD */
+document.addEventListener("keydown", e => handleMove(e.key));
+
+/* TOUCH */
+let startX, startY;
+
+document.getElementById("board").addEventListener("touchstart", e => {
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+});
+
+document.getElementById("board").addEventListener("touchend", e => {
+  let dx = e.changedTouches[0].clientX - startX;
+  let dy = e.changedTouches[0].clientY - startY;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    handleMove(dx > 0 ? "ArrowRight" : "ArrowLeft");
+  } else {
+    handleMove(dy > 0 ? "ArrowDown" : "ArrowUp");
+  }
+});
+
+/* MOUSE DRAG */
+let mx, my;
+
+document.getElementById("board").addEventListener("mousedown", e => {
+  mx = e.clientX;
+  my = e.clientY;
+});
+
+document.addEventListener("mouseup", e => {
+  let dx = e.clientX - mx;
+  let dy = e.clientY - my;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    handleMove(dx > 0 ? "ArrowRight" : "ArrowLeft");
+  } else {
+    handleMove(dy > 0 ? "ArrowDown" : "ArrowUp");
+  }
+});
+
+startGame();
+</script>
 
 </body>
 </html>
