@@ -1,25 +1,445 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial;
+    background: linear-gradient(135deg, #1e1e2f, #2c2c3a);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: white;
+}
+
+#game { text-align: center; }
+
+/* BOARD */
+.board {
+    width: 300px;
+    height: 300px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 10px;
+    position: relative;
+}
+
+.cell {
+    background: #2c2c3a;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.cell:hover { background:#3a3a4a; }
+.cell:active { transform: scale(0.95); }
+
+/* SVG PERFECT FIT */
+svg {
+    width: 75%;
+    height: 75%;
+}
+
+.symbol {
+    fill: none;
+    stroke: #00adb5;
+    stroke-width: 10;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: draw 0.25s ease forwards;
+}
+
+@keyframes draw {
+    to { stroke-dashoffset: 0; }
+}
+
+/* WIN LINE */
+.win-line {
+    position: absolute;
+    height: 6px;
+    background: #00adb5;
+    transform-origin: left;
+    animation: grow 0.35s ease forwards;
+}
+
+@keyframes grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+/* PARTICLES */
+.particle {
+    position: fixed;
+    width: 6px;
+    height: 6px;
+    background: #00adb5;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: explode 0.7s ease forwards;
+}
+
+@keyframes explode {
+    to {
+        transform: translate(var(--x), var(--y));
+        opacity: 0;
+    }
+}
+
+/* BUTTONS */
+button {
+    padding: 8px 14px;
+    margin: 4px;
+    border: none;
+    border-radius: 6px;
+    background: #444;
+    color: white;
+    cursor: pointer;
+}
+
+button.active { background:#00adb5; }
+
+.hidden { display:none; }
+
+.score { margin-top: 10px; }
+
+/* OVERLAY */
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+}
+
+.popup {
+    background: #222;
+    padding: 30px;
+    border-radius: 10px;
+}
+</style>
 </head>
 
 <body>
 
-<header class="main-header">
-  <div class="logo">🎮 GameHub</div>
+<div id="game">
 
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="../more.html">More</a>
-  </nav>
-</header>
+<h1>Tic Tac Toe</h1>
 
-<section class="game-container">
-  <h2>Tic Tac Toe</h2>
-  <p>Game will be added here.</p>
-</section>
+<div>
+    <button onclick="setMode('pvp')" id="pvp" class="active">PVP</button>
+    <button onclick="setMode('ai')" id="ai">AI</button>
+</div>
+
+<div id="difficulty">
+    <button onclick="setDiff(0)" id="d0">Easy</button>
+    <button onclick="setDiff(1)" id="d1">Medium</button>
+    <button onclick="setDiff(2)" id="d2" class="active">Hard</button>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="score">
+X: <span id="sx">0</span> | O: <span id="so">0</span>
+</div>
+
+<button onclick="resetGame()">Restart</button>
+
+</div>
+
+<div class="overlay" id="overlay">
+<div class="popup">
+<h2 id="result"></h2>
+<button onclick="resetGame()">Play Again</button>
+</div>
+</div>
+
+<script>
+let board = Array(9).fill("");
+let current = "X";
+let gameOver = false;
+let mode = "pvp";
+let diff = 2;
+let aiThinking = false;
+
+/* AUDIO SAFE */
+let audioCtx;
+function sound(freq){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+
+    let o = audioCtx.createOscillator();
+    let g = audioCtx.createGain();
+
+    o.frequency.value = freq;
+    g.gain.value = 0.04;
+
+    o.connect(g);
+    g.connect(audioCtx.destination);
+
+    o.start();
+    o.stop(audioCtx.currentTime + 0.07);
+}
+
+/* SCORE */
+let scoreX = parseInt(localStorage.getItem("sx")) || 0;
+let scoreO = parseInt(localStorage.getItem("so")) || 0;
+
+/* INIT */
+function init(){
+    const b = document.getElementById("board");
+    b.innerHTML = "";
+
+    for(let i=0;i<9;i++){
+        let c = document.createElement("div");
+        c.className = "cell";
+        c.onclick = ()=>play(i);
+        b.appendChild(c);
+    }
+
+    updateScore();
+}
+
+/* MODE */
+function setMode(m){
+    mode = m;
+    pvp.classList.toggle("active", m==="pvp");
+    ai.classList.toggle("active", m==="ai");
+
+    difficulty.classList.toggle("hidden", m==="pvp");
+
+    resetGame();
+}
+
+function setDiff(d){
+    diff = d;
+    d0.classList.toggle("active", d===0);
+    d1.classList.toggle("active", d===1);
+    d2.classList.toggle("active", d===2);
+}
+
+/* PLAY */
+function play(i){
+    if(board[i] || gameOver || aiThinking) return;
+
+    board[i] = current;
+    draw(i,current);
+    sound(300);
+
+    let win = checkWin();
+    if(win){
+        gameOver = true;
+        drawLine(win);
+        particles();
+        sound(900);
+
+        if(current==="X") scoreX++; else scoreO++;
+        saveScore();
+
+        show(current+" Wins");
+        return;
+    }
+
+    if(board.every(x=>x)){
+        gameOver = true;
+        sound(500);
+        show("Draw");
+        return;
+    }
+
+    current = current==="X" ? "O" : "X";
+
+    if(mode==="ai" && current==="O"){
+        aiThinking = true;
+        setTimeout(()=>{
+            let m = aiMove();
+            aiThinking = false;
+            if(m!==undefined) play(m);
+        },250);
+    }
+}
+
+/* DRAW SYMBOL */
+function draw(i,p){
+    let cell = document.querySelectorAll(".cell")[i];
+    let svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    svg.setAttribute("viewBox","0 0 100 100");
+
+    if(p==="X"){
+        svg.innerHTML = `
+        <line class="symbol" x1="25" y1="25" x2="75" y2="75"/>
+        <line class="symbol" x1="75" y1="25" x2="25" y2="75"/>`;
+    } else {
+        svg.innerHTML = `<circle class="symbol" cx="50" cy="50" r="28"/>`;
+    }
+
+    cell.appendChild(svg);
+}
+
+/* PARTICLES */
+function particles(){
+    for(let i=0;i<18;i++){
+        let p=document.createElement("div");
+        p.className="particle";
+        p.style.left="50%";
+        p.style.top="50%";
+        p.style.setProperty("--x",(Math.random()-0.5)*180+"px");
+        p.style.setProperty("--y",(Math.random()-0.5)*180+"px");
+        document.body.appendChild(p);
+        setTimeout(()=>p.remove(),700);
+    }
+}
+
+/* AI */
+function aiMove(){
+    let empty = board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    if(empty.length===0) return;
+
+    if(diff===0) return empty[Math.floor(Math.random()*empty.length)];
+    if(diff===1 && Math.random()<0.5)
+        return empty[Math.floor(Math.random()*empty.length)];
+
+    return bestMove();
+}
+
+function bestMove(){
+    let best=-Infinity,move;
+    for(let i=0;i<9;i++){
+        if(!board[i]){
+            board[i]="O";
+            let s=minimax(board,0,false);
+            board[i]="";
+            if(s>best){best=s;move=i;}
+        }
+    }
+    return move;
+}
+
+function minimax(b,d,isMax){
+    let r = winner(b);
+    if(r!==null){
+        if(r==="O") return 10-d;
+        if(r==="X") return d-10;
+        return 0;
+    }
+
+    if(isMax){
+        let best=-Infinity;
+        for(let i=0;i<9;i++){
+            if(!b[i]){
+                b[i]="O";
+                best=Math.max(best,minimax(b,d+1,false));
+                b[i]="";
+            }
+        }
+        return best;
+    } else {
+        let best=Infinity;
+        for(let i=0;i<9;i++){
+            if(!b[i]){
+                b[i]="X";
+                best=Math.min(best,minimax(b,d+1,true));
+                b[i]="";
+            }
+        }
+        return best;
+    }
+}
+
+/* WIN */
+const combos=[
+[0,1,2],[3,4,5],[6,7,8],
+[0,3,6],[1,4,7],[2,5,8],
+[0,4,8],[2,4,6]
+];
+
+function checkWin(){
+    for(let c of combos){
+        if(c.every(i=>board[i]===current)) return c;
+    }
+}
+
+function winner(b){
+    for(let c of combos){
+        if(c.every(i=>b[i] && b[i]===b[c[0]])) return b[c[0]];
+    }
+    if(b.every(x=>x)) return "draw";
+    return null;
+}
+
+/* WIN LINE AUTO */
+function drawLine(c){
+    let cells = document.querySelectorAll(".cell");
+    let rect1 = cells[c[0]].getBoundingClientRect();
+    let rect2 = cells[c[2]].getBoundingClientRect();
+    let boardRect = document.getElementById("board").getBoundingClientRect();
+
+    let x1 = rect1.left + rect1.width/2 - boardRect.left;
+    let y1 = rect1.top + rect1.height/2 - boardRect.top;
+    let x2 = rect2.left + rect2.width/2 - boardRect.left;
+    let y2 = rect2.top + rect2.height/2 - boardRect.top;
+
+    let length = Math.hypot(x2-x1,y2-y1);
+    let angle = Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+
+    let line = document.createElement("div");
+    line.className="win-line";
+    line.style.width = length+"px";
+    line.style.left = x1+"px";
+    line.style.top = y1+"px";
+    line.style.transform = `rotate(${angle}deg)`;
+
+    document.getElementById("board").appendChild(line);
+}
+
+/* UI */
+function show(t){
+    result.textContent=t;
+    overlay.style.display="flex";
+}
+
+function resetGame(){
+    board = Array(9).fill("");
+    current="X";
+    gameOver=false;
+    aiThinking=false;
+    overlay.style.display="none";
+    init();
+}
+
+function saveScore(){
+    localStorage.setItem("sx",scoreX);
+    localStorage.setItem("so",scoreO);
+    updateScore();
+}
+
+function updateScore(){
+    sx.textContent=scoreX;
+    so.textContent=scoreO;
+}
+
+const overlay=document.getElementById("overlay");
+const result=document.getElementById("result");
+
+init();
+</script>
 
 </body>
 </html>
