@@ -285,24 +285,39 @@ grid.addEventListener('mousedown',e=>{
   mx=e.clientX;
   my=e.clientY;
 });
+// FIXED MOUSE CONTROL
+let isDragging = false;
+let startX = 0;
+let startY = 0;
 
-document.addEventListener('mouseup',()=>down=false);
+const gridWrapper = document.querySelector('.grid-wrapper');
 
-document.addEventListener('mousemove',e=>{
-  if(!down) return;
-  let dx=mx-e.clientX;
-  let dy=my-e.clientY;
-
-  if(Math.abs(dx)>30||Math.abs(dy)>30){
-    if(Math.abs(dx)>Math.abs(dy)){
-      move(dx>0?'left':'right');
-    }else{
-      move(dy>0?'up':'down');
-    }
-    down=false;
-  }
+gridWrapper.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
 });
 
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+
+  let dx = e.clientX - startX;
+  let dy = e.clientY - startY;
+
+  if (Math.abs(dx) < 40 && Math.abs(dy) < 40) return;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    move(dx > 0 ? 'right' : 'left');
+  } else {
+    move(dy > 0 ? 'down' : 'up');
+  }
+
+  isDragging = false;
+});
 newGame();
 </script>
 
