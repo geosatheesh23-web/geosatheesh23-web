@@ -6,69 +6,60 @@
 
 <style>
 body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;height:100vh}
+
+/* LAYOUT */
 .left{width:25%;padding:10px}
-.center{flex:1;display:flex;justify-content:center;align-items:center}
+.center{flex:1;display:flex;flex-direction:column;align-items:center}
 .right{width:25%;padding:10px;overflow:auto}
+
+.topbar{margin-bottom:10px}
 
 #game{
 width:420px;height:420px;
-background:#111;
-border-radius:12px;
-position:relative;
-overflow:hidden;
+background:#111;border-radius:12px;
+position:relative;overflow:hidden;
 }
 
 .target{
-position:absolute;
-border-radius:50%;
-background:#00adb5;
-cursor:pointer;
-transition:0.1s;
+position:absolute;border-radius:50%;
+background:#00adb5;cursor:pointer;
 }
 
-.boss{
-background:#ff3b3b;
-box-shadow:0 0 20px red;
-}
+.boss{background:red;box-shadow:0 0 20px red;}
 
-button{
-padding:8px;margin:5px;
-background:#00adb5;
-border:none;color:white;
-border-radius:6px;cursor:pointer;
+button,select{
+padding:8px;margin:5px;background:#00adb5;
+border:none;color:white;border-radius:6px;cursor:pointer;
 }
 
 canvas{width:100%;background:#000;border-radius:8px}
-
-.combo{
-position:absolute;
-color:#00ffcc;
-font-size:18px;
-animation:pop .3s ease;
-}
-@keyframes pop{from{transform:scale(.5)}to{transform:scale(1.5);opacity:0}}
-
-.flash{
-position:absolute;
-top:0;left:0;right:0;bottom:0;
-background:rgba(255,255,255,0.2);
-animation:fade .3s;
-}
-@keyframes fade{to{opacity:0}}
 </style>
 </head>
 
 <body>
 
 <div class="left">
+<select id="graphMode">
+<option value="reaction">Reaction Time</option>
+<option value="score">Score</option>
+</select>
 <canvas id="graph" height="200"></canvas>
-<div id="stats"></div>
+
 <div id="best"></div>
 <div id="elo"></div>
 <div id="rank"></div>
 </div>
 
 <div class="center">
+<div class="topbar">
+<select id="mode">
+<option value="classic">Classic</option>
+<option value="rush">Rush</option>
+<option value="wave">Wave</option>
+</select>
+<button id="start">Start</button>
+</div>
+
 <div id="game"></div>
 </div>
 
@@ -81,39 +72,36 @@ animation:fade .3s;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
-/* FIREBASE */
+/* 🔑 PUT YOUR REAL CONFIG HERE */
 const firebaseConfig = {
-apiKey: "YOUR_KEY",
-authDomain: "reactionarena-12fed.firebaseapp.com",
-databaseURL: "https://reactionarena-12fed-default-rtdb.firebaseio.com",
-projectId: "reactionarena-12fed"
+  apiKey: "AIzaSyCBCF3KYPBdBzEl4XFDmbkzdfZGIR58wRg",
+  authDomain: "reactionarena-12fed.firebaseapp.com",
+  databaseURL: "https://reactionarena-12fed-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "reactionarena-12fed"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+/* USER */
+let player = localStorage.getItem("name");
+if(!player){
+  player = prompt("Enter your name:");
+  localStorage.setItem("name", player);
+}
+
 /* STATE */
-let running=false;
-let targets=[],history=[];
-let score=0,combo=0;
-let best=localStorage.getItem("best")||0;
-let elo=parseInt(localStorage.getItem("elo")||1000);
+let running=false,mode="classic";
+let score=0,elo=parseInt(localStorage.getItem("elo")||1000);
+let bests=JSON.parse(localStorage.getItem("bests")||'{}');
 
-let difficulty=1;
-let waveCount=1;
-
-let player="P"+Math.floor(Math.random()*100000);
+let history=[],targets=[];
 
 /* UI */
 const game=document.getElementById("game");
-const stats=document.getElementById("stats");
-const bestBox=document.getElementById("best");
-const eloBox=document.getElementById("elo");
-const rankBox=document.getElementById("rank");
-const panel=document.getElementById("panel");
 const graph=document.getElementById("graph");
+const panel=document.getElementById("panel");
 
-/* RANK SYSTEM */
+/* RANK */
 function getRank(e){
 if(e<800) return "Iron";
 if(e<1000) return "Bronze";
@@ -125,178 +113,155 @@ return "Master";
 }
 
 /* START */
-function start(){
-running=true;
-score=0;combo=0;history=[];
-targets.forEach(t=>cleanupTarget(t));
-targets=[];
-game.innerHTML="";
-waveCount=1;
-difficulty=1;
-nextWave();
-}
-
-game.onclick=(e)=>{
-if(e.target===game && running) gameOver();
+document.getElementById("start").onclick=()=>{
+mode=document.getElementById("mode").value;
+startGame();
 };
 
-/* WAVE */
-function nextWave(){
-if(!running) return;
+function startGame(){
+running=true;
+score=0;
+history=[];
+clearTargets();
 
-let count=Math.floor(waveCount*2 + difficulty*3);
-let cleared=0;
-let isBoss = waveCount%5===0;
-
-let interval=setInterval(()=>{
-spawnTarget(isBoss);
-},Math.max(200,1000/difficulty));
-
-setTimeout(()=>{
-clearInterval(interval);
-if(cleared<count) gameOver();
-else{
-waveCount++;
-nextWave();
+if(mode==="classic") classicLoop();
+if(mode==="rush") rushLoop();
+if(mode==="wave") waveLoop();
 }
-},8000);
 
-function spawnTarget(boss){
+/* GAME OVER */
+function gameOver(){
+running=false;
+clearTargets();
+
+/* ELO vs leaderboard */
+onValue(ref(db,"scores"),snap=>{
+let data=snap.val()||{};
+let players=Object.values(data);
+
+let avg = players.length ? players.reduce((a,b)=>a+b,0)/players.length : 1000;
+let expected = 1/(1+Math.pow(10,(avg-elo)/400));
+let actual = score>avg?1:0;
+
+elo = Math.round(elo + 32*(actual-expected));
+localStorage.setItem("elo",elo);
+
+updateUI();
+},{onlyOnce:true});
+
+/* BEST */
+if(!bests[mode] || score>bests[mode]){
+bests[mode]=score;
+localStorage.setItem("bests",JSON.stringify(bests));
+}
+
+updateDB();
+}
+
+/* TARGET */
+function spawn(moving=false,boss=false){
 let t=document.createElement("div");
-let size=boss?80:50;
+let size=boss?70:40;
 
 t.className="target";
 if(boss) t.classList.add("boss");
 
 t.style.width=size+"px";
 t.style.height=size+"px";
-t.style.left=Math.random()*360+"px";
-t.style.top=Math.random()*360+"px";
+t.style.left=Math.random()*380+"px";
+t.style.top=Math.random()*380+"px";
 
 let start=performance.now();
-let hp = boss ? 3 : 1;
 
-/* MOVEMENT */
-let dx = (Math.random()-0.5)*4*difficulty;
-let dy = (Math.random()-0.5)*4*difficulty;
+let dx=(Math.random()-0.5)*6;
+let dy=(Math.random()-0.5)*6;
 
-let move=setInterval(()=>{
-let x=parseFloat(t.style.left);
-let y=parseFloat(t.style.top);
-
-x+=dx; y+=dy;
-
-if(x<0||x>360) dx*=-1;
-if(y<0||y>360) dy*=-1;
-
+let move;
+if(moving){
+move=setInterval(()=>{
+let x=parseFloat(t.style.left)+dx;
+let y=parseFloat(t.style.top)+dy;
+if(x<0||x>380) dx*=-1;
+if(y<0||y>380) dy*=-1;
 t.style.left=x+"px";
 t.style.top=y+"px";
 },16);
+}
 
-/* LIFE TIMER */
-let timeout=setTimeout(()=>{
-cleanupTarget(t);
-gameOver();
-},boss?2500:1500);
+let timeout=setTimeout(()=>gameOver(),boss?1200:800);
 
 t.onclick=(e)=>{
 e.stopPropagation();
 
-hp--;
-if(hp>0){
-t.style.transform="scale(1.2)";
-setTimeout(()=>t.style.transform="scale(1)",100);
-return;
-}
+let rt=performance.now()-start;
+history.push(rt);
+
+score+=Math.max(0,500-rt);
 
 clearInterval(move);
 clearTimeout(timeout);
+t.remove();
 
-/* TIME */
-let time=performance.now()-start;
-history.push(time);
-
-/* SMOOTH DIFFICULTY */
-let avg=history.reduce((a,b)=>a+b,0)/history.length;
-let targetDiff = avg<250?3:avg<400?2.5:avg<600?2:1.5;
-difficulty += (targetDiff - difficulty)*0.1;
-
-difficulty=Math.max(0.5,Math.min(3,difficulty));
-
-score+=10+combo;
-combo++;
-cleared++;
-
-showCombo(t);
-cleanupTarget(t);
-update();
-updateDB();
+updateUI();
 };
 
-targets.push(t);
 game.appendChild(t);
-
-t.dataset.move=move;
-t.dataset.timeout=timeout;
+targets.push({el:t,move,timeout});
 }
 
+/* LOOPS */
+function classicLoop(){
+function loop(){
+if(!running) return;
+spawn(false,false);
+setTimeout(loop,800);
+}
+loop();
 }
 
-/* CLEANUP */
-function cleanupTarget(t){
-clearInterval(t.dataset.move);
-clearTimeout(t.dataset.timeout);
-t.remove();
+function rushLoop(){
+function loop(){
+if(!running) return;
+spawn(true,false);
+setTimeout(loop,300);
+}
+loop();
 }
 
-/* COMBO */
-function showCombo(t){
-let c=document.createElement("div");
-c.className="combo";
-c.innerText="x"+combo;
-c.style.left=t.style.left;
-c.style.top=t.style.top;
-game.appendChild(c);
-setTimeout(()=>c.remove(),300);
+function waveLoop(){
+let wave=1;
+
+function loop(){
+if(!running) return;
+
+for(let i=0;i<wave;i++){
+spawn(true,wave%5===0);
 }
 
-/* GAME OVER */
-function gameOver(){
-running=false;
-targets.forEach(t=>cleanupTarget(t));
+wave++;
+setTimeout(loop,1200);
+}
+loop();
+}
+
+/* CLEAN */
+function clearTargets(){
+targets.forEach(t=>{
+clearInterval(t.move);
+clearTimeout(t.timeout);
+t.el.remove();
+});
 targets=[];
-
-/* REAL ELO */
-let expected = 1/(1+Math.pow(10,(1000-elo)/400));
-let actual = score>best?1:0;
-
-elo = Math.round(elo + 32*(actual-expected));
-elo=Math.max(0,elo);
-localStorage.setItem("elo",elo);
-
-if(score>best){
-best=score;
-localStorage.setItem("best",best);
-flash();
 }
 
-update();
-}
+/* UI */
+function updateUI(){
+document.getElementById("best").innerHTML=
+`Best (C/R/W): ${bests.classic||0} / ${bests.rush||0} / ${bests.wave||0}`;
 
-/* FLASH */
-function flash(){
-let f=document.createElement("div");
-f.className="flash";
-game.appendChild(f);
-setTimeout(()=>f.remove(),300);
-}
+document.getElementById("elo").innerHTML=`ELO: ${elo}`;
+document.getElementById("rank").innerHTML=`Rank: ${getRank(elo)}`;
 
-/* UPDATE */
-function update(){
-stats.innerHTML=`Score: ${score}<br>Combo: ${combo}<br>Wave: ${waveCount}`;
-bestBox.innerHTML=`Best: ${best}`;
-eloBox.innerHTML=`ELO: ${elo}`;
-rankBox.innerHTML=`Rank: ${getRank(elo)}`;
 drawGraph();
 }
 
@@ -305,25 +270,30 @@ function drawGraph(){
 let ctx=graph.getContext("2d");
 ctx.clearRect(0,0,graph.width,graph.height);
 
-if(history.length<2)return;
+if(history.length<2) return;
+
+let mode=document.getElementById("graphMode").value;
 
 let max=Math.max(...history);
 let step=graph.width/history.length;
 
 ctx.beginPath();
 history.forEach((v,i)=>{
+let val = mode==="reaction"?v:(i+1)*50;
 let x=i*step;
-let y=graph.height-(v/max)*graph.height;
-if(i===0)ctx.moveTo(x,y);
+let y=graph.height-(val/max)*graph.height;
+
+if(i===0) ctx.moveTo(x,y);
 else ctx.lineTo(x,y);
 });
+
 ctx.strokeStyle="#00adb5";
 ctx.stroke();
 }
 
-/* LEADERBOARD */
+/* DB */
 function updateDB(){
-set(ref(db,"scores/"+player),score);
+set(ref(db,"scores/"+player),elo);
 }
 
 onValue(ref(db,"scores"),snap=>{
@@ -339,13 +309,7 @@ let rank=arr.findIndex(p=>p[0]===player)+1;
 panel.innerHTML+=`<hr>Your Rank: ${rank}`;
 });
 
-/* START BUTTON */
-let btn=document.createElement("button");
-btn.innerText="Start Game";
-btn.onclick=start;
-document.body.appendChild(btn);
-
-update();
+updateUI();
 </script>
 
 </body>
