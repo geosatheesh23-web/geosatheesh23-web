@@ -1,25 +1,275 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reaction Arena</title>
+
+<style>
+body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;height:100vh}
+.left{width:25%;padding:10px}
+.center{flex:1;display:flex;justify-content:center;align-items:center}
+.right{width:25%;padding:10px;overflow:auto}
+
+#game{width:420px;height:420px;background:#111;border-radius:12px;position:relative}
+
+.target{
+position:absolute;
+width:60px;height:60px;
+background:#00adb5;
+border-radius:50%;
+cursor:pointer;
+transition:.1s;
+}
+
+.comboFx{
+position:absolute;
+color:#00ffcc;
+font-size:20px;
+animation:pop .4s ease;
+}
+@keyframes pop{from{transform:scale(.5)}to{transform:scale(1.5);opacity:0}}
+
+.notify{
+position:absolute;
+top:50%;left:50%;
+transform:translate(-50%,-50%);
+font-size:28px;display:none;
+}
+
+.mode{background:#222;padding:8px;margin:5px;cursor:pointer}
+.active{background:#00adb5}
+
+canvas{width:100%;background:#000;border-radius:8px}
+</style>
 </head>
 
 <body>
 
-<header class="main-header">
-  <div class="logo">🎮 GameHub</div>
+<div class="left">
+<canvas id="graph" height="200"></canvas>
+<button onclick="toggleGraph()">Switch Graph</button>
+</div>
 
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="../more.html">More</a>
-  </nav>
-</header>
+<div class="center">
+<div id="game">
+<button onclick="start()">Start</button>
+<div class="notify" id="notify"></div>
+</div>
+</div>
 
-<section class="game-container">
-  <h2>Reaction time game</h2>
-  <p>Game will be added here.</p>
-</section>
+<div class="right" id="panel"></div>
+
+<script>
+let mode="wave";
+let running=false;
+let targets=[];
+let history=[];
+let score=0;
+let combo=0;
+let spawnRate=1000;
+let graphMode="time";
+let playerId="P"+Math.floor(Math.random()*100000);
+
+/* MODES */
+const modes={wave:"Wave",rush:"Rush",classic:"Classic"};
+
+function renderModes(){
+panel.innerHTML="";
+for(let m in modes){
+let d=document.createElement("div");
+d.className="mode "+(mode===m?"active":"");
+d.innerText=modes[m];
+d.onclick=()=>{mode=m;renderModes()};
+panel.appendChild(d);
+}
+}
+renderModes();
+
+/* START */
+function start(){
+if(running)return;
+running=true;
+score=0;combo=0;history=[];
+if(mode==="wave")waveLoop(2);
+if(mode==="rush")rushLoop();
+if(mode==="classic")classic();
+}
+
+/* WAVE MODE */
+function waveLoop(count){
+if(!running)return;
+let spawned=0;
+let interval=setInterval(()=>{
+spawnTarget();
+spawned++;
+if(spawned>=count)clearInterval(interval);
+},10000/count);
+
+setTimeout(()=>{
+if(targets.length>0){gameOver()}
+waveLoop(count+2);
+},10000);
+}
+
+/* RUSH MODE */
+function rushLoop(){
+if(!running)return;
+spawnTarget(true);
+spawnRate*=0.95;
+setTimeout(rushLoop,spawnRate);
+}
+
+/* CLASSIC */
+function classic(){
+spawnTarget();
+}
+
+/* SPAWN */
+function spawnTarget(fast=false){
+let t=document.createElement("div");
+t.className="target";
+let size=fast?40:60;
+t.style.width=size+"px";t.style.height=size+"px";
+
+t.style.left=Math.random()*360+"px";
+t.style.top=Math.random()*360+"px";
+
+let start=performance.now();
+
+t.onclick=()=>{
+if(!running)return;
+let time=Math.floor(performance.now()-start);
+history.push(time);
+
+score+=10+combo;
+combo++;
+
+showCombo(t,combo);
+
+t.remove();
+targets.splice(targets.indexOf(t),1);
+
+updateGraph();
+updateDB();
+
+if(mode==="classic")spawnTarget();
+};
+
+targets.push(t);
+game.appendChild(t);
+}
+
+/* MISS CHECK */
+setInterval(()=>{
+if(running && targets.length>10)gameOver();
+},500);
+
+/* GAME OVER */
+function gameOver(){
+running=false;
+targets.forEach(t=>t.remove());
+targets=[];
+
+notify.innerText="GAME OVER";
+notify.style.display="block";
+setTimeout(()=>notify.style.display="none",1500);
+}
+
+/* COMBO FX */
+function showCombo(t,c){
+let fx=document.createElement("div");
+fx.className="comboFx";
+fx.innerText="x"+c;
+fx.style.left=t.style.left;
+fx.style.top=t.style.top;
+game.appendChild(fx);
+setTimeout(()=>fx.remove(),400);
+}
+
+/* GRAPH */
+let offset=0,zoom=1;
+
+graph.onwheel=e=>{
+zoom+=e.deltaY*-0.001;
+drawGraph();
+};
+
+graph.onmousedown=e=>{
+let startX=e.clientX;
+document.onmousemove=ev=>{
+offset+=(ev.clientX-startX);
+startX=ev.clientX;
+drawGraph();
+};
+document.onmouseup=()=>document.onmousemove=null;
+};
+
+function toggleGraph(){
+graphMode=graphMode==="time"?"score":"time";
+drawGraph();
+}
+
+function updateGraph(){drawGraph();}
+
+function drawGraph(){
+let ctx=graph.getContext("2d");
+ctx.clearRect(0,0,graph.width,graph.height);
+
+let data=graphMode==="time"?history:history.map((_,i)=>i*10);
+
+if(data.length<2)return;
+
+let max=Math.max(...data);
+let step=(graph.width/(data.length))*zoom;
+
+ctx.beginPath();
+data.forEach((v,i)=>{
+let x=i*step+offset;
+let y=graph.height-(v/max)*graph.height;
+if(i===0)ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+});
+ctx.strokeStyle="#00adb5";
+ctx.stroke();
+}
+
+/* MULTIPLAYER */
+function updateDB(){
+db.ref("scores/"+mode+"/"+playerId).set(score);
+}
+
+db.ref("scores/"+mode).on("value",snap=>{
+let data=snap.val()||{};
+let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+
+panel.innerHTML="<h3>Leaderboard</h3>";
+arr.slice(0,10).forEach((p,i)=>{
+panel.innerHTML+=`${i+1}. ${p[0]} - ${p[1]}<br>`;
+});
+
+let rank=arr.findIndex(p=>p[0]===playerId)+1;
+panel.innerHTML+=`<hr>Your Rank: ${rank}`;
+});
+</script>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyCBCF3KYPBdBzEl4XFDmbkzdfZGIR58wRg",
+    authDomain: "reactionarena-12fed.firebaseapp.com",
+    projectId: "reactionarena-12fed",
+    storageBucket: "reactionarena-12fed.firebasestorage.app",
+    messagingSenderId: "701108597411",
+    appId: "1:701108597411:web:6107764625b7d0a2210516"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
 
 </body>
 </html>
