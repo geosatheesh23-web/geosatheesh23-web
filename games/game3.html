@@ -13,29 +13,34 @@ body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;heigh
 .topbar{margin-bottom:10px}
 
 #game{
-width:420px;height:420px;background:#111;border-radius:12px;
+width:420px;height:420px;
+background:#111;border-radius:12px;
 position:relative;overflow:hidden;
 }
 
 .target{
-position:absolute;border-radius:50%;background:#00adb5;cursor:pointer;
+position:absolute;
+border-radius:50%;
+background:#00adb5;
+cursor:pointer;
+}
+
+#overlay{
+position:absolute;top:0;left:0;right:0;bottom:0;
+display:flex;align-items:center;justify-content:center;
+flex-direction:column;
+background:rgba(0,0,0,0.6);
+font-size:22px;
 }
 
 #pressureBar{
-height:10px;background:#222;margin-top:5px;border-radius:5px;overflow:hidden;
+height:10px;background:#222;width:420px;margin-top:5px;border-radius:5px;overflow:hidden;
 }
-#pressure{
-height:100%;width:0%;background:#00ffcc;
-}
-
-#gameOver{
-position:absolute;top:0;left:0;right:0;bottom:0;
-background:rgba(0,0,0,0.8);
-display:none;align-items:center;justify-content:center;flex-direction:column;
-}
+#pressure{height:100%;width:0%;background:#00ffcc;}
 
 button,select{
-padding:8px;margin:5px;background:#00adb5;border:none;color:white;border-radius:6px;cursor:pointer;
+padding:8px;margin:5px;background:#00adb5;
+border:none;color:white;border-radius:6px;cursor:pointer;
 }
 
 canvas{width:100%;background:#000;border-radius:8px}
@@ -66,18 +71,17 @@ canvas{width:100%;background:#000;border-radius:8px}
 </div>
 
 <div id="game">
-<div id="gameOver"></div>
+<div id="overlay" style="display:none;"></div>
 </div>
 
 <div id="pressureBar"><div id="pressure"></div></div>
 
 <div style="margin-top:10px;text-align:center;font-size:14px;">
-Click targets as fast as possible.<br>
-Perfect timing gives more score.<br>
+Click when target appears.<br>
+Perfect &lt;200ms, Good &lt;400ms.<br>
 Miss = instant loss.<br>
-Pressure increases difficulty.
+Stay fast to build pressure.
 </div>
-
 </div>
 
 <div class="right">
@@ -89,6 +93,7 @@ Pressure increases difficulty.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyCBCF3KYPBdBzEl4XFDmbkzdfZGIR58wRg",
   authDomain: "reactionarena-12fed.firebaseapp.com",
@@ -107,28 +112,27 @@ if(!player){
 }
 
 /* STATE */
-let running=false,mode="classic";
-let score=0,elo=parseInt(localStorage.getItem("elo")||1000);
+let running=false, mode="classic";
+let score=0, elo=parseInt(localStorage.getItem("elo")||1000);
 let bests=JSON.parse(localStorage.getItem("bests")||'{}');
-let history=[],targets=[],ghost=[];
-
+let history=[];
 let pressure=0;
+let currentTarget=null;
 
 /* UI */
 const game=document.getElementById("game");
+const overlay=document.getElementById("overlay");
 const panel=document.getElementById("panel");
-const pressureBar=document.getElementById("pressure");
-const gameOverBox=document.getElementById("gameOver");
 
 /* SOUND */
-function play(freq){
+function beep(freq){
 let ctx=new AudioContext();
 let o=ctx.createOscillator();
 let g=ctx.createGain();
 o.connect(g);g.connect(ctx.destination);
 o.frequency.value=freq;
 o.start();
-g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.2);
+g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.15);
 }
 
 /* START */
@@ -140,22 +144,30 @@ startGame();
 function startGame(){
 running=true;
 score=0;
-history=[];
-ghost=[...history];
 pressure=0;
-clearTargets();
-gameOverBox.style.display="none";
+history=[];
+clearTarget();
+overlay.style.display="none";
 
 if(mode==="classic") classicLoop();
 if(mode==="rush") rushLoop();
 if(mode==="wave") waveLoop();
 }
 
-/* TARGET */
+/* SPAWN */
 function spawn(){
-let delay=200+Math.random()*600;
+if(!running || currentTarget) return;
+
+/* PRE-CUE */
+let flash=document.createElement("div");
+flash.style.position="absolute";
+flash.style.inset=0;
+flash.style.background="rgba(255,255,255,0.08)";
+game.appendChild(flash);
 
 setTimeout(()=>{
+flash.remove();
+
 if(!running) return;
 
 let t=document.createElement("div");
@@ -166,62 +178,58 @@ t.style.left=Math.random()*370+"px";
 t.style.top=Math.random()*370+"px";
 
 let start=performance.now();
-let valid=false;
+let clicked=false;
 
-setTimeout(()=>valid=true,60); // anti-cheat
-
-let timeout=setTimeout(()=>gameOver(),900-pressure*200);
+let timeout=setTimeout(()=>{
+if(!clicked) gameOver();
+},800 - pressure*2);
 
 t.onclick=(e)=>{
 e.stopPropagation();
-if(!valid) return;
+if(clicked) return;
+clicked=true;
 
 let rt=performance.now()-start;
 history.push(rt);
 
-/* PERFECT SYSTEM */
-let points=0;
-if(rt<200){ points=300; play(800); pressure+=10; }
-else if(rt<400){ points=150; play(500); pressure+=5; }
-else{ points=50; play(200); pressure-=5; }
+if(rt<200){ score+=300; pressure+=10; beep(800);}
+else if(rt<400){ score+=150; pressure+=5; beep(500);}
+else{ score+=50; pressure-=5; beep(200);}
 
 pressure=Math.max(0,Math.min(100,pressure));
 
-score+=points*(1+pressure/100);
-
 clearTimeout(timeout);
 t.remove();
+currentTarget=null;
 
 updateUI();
 };
 
 game.appendChild(t);
-targets.push(t);
+currentTarget=t;
 
-},delay);
+},150);
 }
 
 /* LOOPS */
 function classicLoop(){
-let base=800;
+let base=900;
 function loop(){
 if(!running) return;
-
 spawn();
-base+=Math.sin(score/500)*50; // rhythm shift
-setTimeout(loop,base - pressure*3);
+let variation=Math.sin(score/400)*150;
+setTimeout(loop, base + variation - pressure*2);
 }
 loop();
 }
 
 function rushLoop(){
-let speed=400;
+let speed=500;
 function loop(){
 if(!running) return;
-
 spawn();
-speed*=0.98; // faster over time
-setTimeout(loop,Math.max(120,speed - pressure*2));
+speed*=0.97;
+setTimeout(loop, Math.max(120, speed - pressure*2));
 }
 loop();
 }
@@ -229,53 +237,63 @@ loop();
 function waveLoop(){
 let wave=1;
 
-function runWave(){
+function startWave(){
 if(!running) return;
 
-let needed=wave*2;
+let required=wave*2;
 let done=0;
 
-let timer=setTimeout(()=>{
-if(done<needed) gameOver();
-else{
-wave++;
-runWave();
-}
-},10000);
+overlay.style.display="flex";
+overlay.innerHTML="Wave "+wave;
+setTimeout(()=>overlay.style.display="none",800);
 
-function spawnWave(){
-if(done>=needed) return;
+let end=Date.now()+10000;
+
+function next(){
+if(!running) return;
+
+if(done>=required){
+wave++;
+setTimeout(startWave,600);
+return;
+}
+
 spawn();
 
 let check=setInterval(()=>{
 if(history.length>done){
 done++;
 clearInterval(check);
+next();
 }
 },10);
 }
 
-for(let i=0;i<needed;i++){
-setTimeout(spawnWave,i*1000);
+setTimeout(()=>{
+if(done<required) gameOver();
+},10000);
+
+next();
 }
-}
-runWave();
+
+startWave();
 }
 
 /* GAME OVER */
 function gameOver(){
+if(!running) return;
 running=false;
-clearTargets();
+clearTarget();
 
-gameOverBox.style.display="flex";
-gameOverBox.innerHTML=`Game Over<br>Score: ${Math.floor(score)}`;
-
-play(100);
+overlay.style.display="flex";
+overlay.innerHTML=`Game Over<br>Score: ${Math.floor(score)}`;
+beep(120);
 
 /* ELO */
 onValue(ref(db,"scores"),snap=>{
 let data=snap.val()||{};
-let avg = Object.values(data).reduce((a,b)=>a+b,0)/Object.values(data).length || 1000;
+let vals=Object.values(data);
+let avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:1000;
 
 let expected=1/(1+Math.pow(10,(avg-elo)/400));
 let actual=score>avg?1:0;
@@ -286,7 +304,7 @@ localStorage.setItem("elo",elo);
 updateUI();
 },{onlyOnce:true});
 
-/* SAVE BEST */
+/* SAVE */
 if(!bests[mode]||score>bests[mode]){
 bests[mode]=score;
 localStorage.setItem("bests",JSON.stringify(bests));
@@ -296,9 +314,11 @@ set(ref(db,"scores/"+player),elo);
 }
 
 /* CLEAN */
-function clearTargets(){
-targets.forEach(t=>t.remove());
-targets=[];
+function clearTarget(){
+if(currentTarget){
+currentTarget.remove();
+currentTarget=null;
+}
 }
 
 /* UI */
@@ -308,8 +328,8 @@ document.getElementById("best").innerHTML=
 
 document.getElementById("elo").innerHTML=`ELO: ${elo}`;
 document.getElementById("rank").innerHTML=`Rank: ${getRank(elo)}`;
+document.getElementById("pressure").style.width=pressure+"%";
 
-pressureBar.style.width=pressure+"%";
 drawGraph();
 }
 
