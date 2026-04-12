@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reaction Arena</title>
 
 <style>
@@ -10,36 +10,51 @@ body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;heigh
 .center{flex:1;display:flex;justify-content:center;align-items:center}
 .right{width:25%;padding:10px;overflow:auto}
 
-#game{width:420px;height:420px;background:#111;border-radius:12px;position:relative}
+#game{
+width:420px;height:420px;
+background:#111;
+border-radius:12px;
+position:relative;
+overflow:hidden;
+}
 
 .target{
 position:absolute;
-width:60px;height:60px;
-background:#00adb5;
 border-radius:50%;
+background:#00adb5;
 cursor:pointer;
-transition:.1s;
+transition:0.1s;
 }
 
-.comboFx{
+.boss{
+background:#ff3b3b;
+box-shadow:0 0 20px red;
+}
+
+button{
+padding:8px;margin:5px;
+background:#00adb5;
+border:none;color:white;
+border-radius:6px;cursor:pointer;
+}
+
+canvas{width:100%;background:#000;border-radius:8px}
+
+.combo{
 position:absolute;
 color:#00ffcc;
-font-size:20px;
-animation:pop .4s ease;
+font-size:18px;
+animation:pop .3s ease;
 }
 @keyframes pop{from{transform:scale(.5)}to{transform:scale(1.5);opacity:0}}
 
-.notify{
+.flash{
 position:absolute;
-top:50%;left:50%;
-transform:translate(-50%,-50%);
-font-size:28px;display:none;
+top:0;left:0;right:0;bottom:0;
+background:rgba(255,255,255,0.2);
+animation:fade .3s;
 }
-
-.mode{background:#222;padding:8px;margin:5px;cursor:pointer}
-.active{background:#00adb5}
-
-canvas{width:100%;background:#000;border-radius:8px}
+@keyframes fade{to{opacity:0}}
 </style>
 </head>
 
@@ -47,184 +62,257 @@ canvas{width:100%;background:#000;border-radius:8px}
 
 <div class="left">
 <canvas id="graph" height="200"></canvas>
-<button onclick="toggleGraph()">Switch Graph</button>
+<div id="stats"></div>
+<div id="best"></div>
+<div id="elo"></div>
+<div id="rank"></div>
 </div>
 
 <div class="center">
-<div id="game">
-<button onclick="start()">Start</button>
-<div class="notify" id="notify"></div>
-</div>
+<div id="game"></div>
 </div>
 
-<div class="right" id="panel"></div>
+<div class="right">
+<h3>Leaderboard</h3>
+<div id="panel"></div>
+</div>
 
-<script>
-let mode="wave";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
+
+/* FIREBASE */
+const firebaseConfig = {
+apiKey: "YOUR_KEY",
+authDomain: "reactionarena-12fed.firebaseapp.com",
+databaseURL: "https://reactionarena-12fed-default-rtdb.firebaseio.com",
+projectId: "reactionarena-12fed"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* STATE */
 let running=false;
-let targets=[];
-let history=[];
-let score=0;
-let combo=0;
-let spawnRate=1000;
-let graphMode="time";
-let playerId="P"+Math.floor(Math.random()*100000);
+let targets=[],history=[];
+let score=0,combo=0;
+let best=localStorage.getItem("best")||0;
+let elo=parseInt(localStorage.getItem("elo")||1000);
 
-/* MODES */
-const modes={wave:"Wave",rush:"Rush",classic:"Classic"};
+let difficulty=1;
+let waveCount=1;
 
-function renderModes(){
-panel.innerHTML="";
-for(let m in modes){
-let d=document.createElement("div");
-d.className="mode "+(mode===m?"active":"");
-d.innerText=modes[m];
-d.onclick=()=>{mode=m;renderModes()};
-panel.appendChild(d);
+let player="P"+Math.floor(Math.random()*100000);
+
+/* UI */
+const game=document.getElementById("game");
+const stats=document.getElementById("stats");
+const bestBox=document.getElementById("best");
+const eloBox=document.getElementById("elo");
+const rankBox=document.getElementById("rank");
+const panel=document.getElementById("panel");
+const graph=document.getElementById("graph");
+
+/* RANK SYSTEM */
+function getRank(e){
+if(e<800) return "Iron";
+if(e<1000) return "Bronze";
+if(e<1200) return "Silver";
+if(e<1400) return "Gold";
+if(e<1600) return "Platinum";
+if(e<1800) return "Diamond";
+return "Master";
 }
-}
-renderModes();
 
 /* START */
 function start(){
-if(running)return;
 running=true;
 score=0;combo=0;history=[];
-if(mode==="wave")waveLoop(2);
-if(mode==="rush")rushLoop();
-if(mode==="classic")classic();
+targets.forEach(t=>cleanupTarget(t));
+targets=[];
+game.innerHTML="";
+waveCount=1;
+difficulty=1;
+nextWave();
 }
 
-/* WAVE MODE */
-function waveLoop(count){
-if(!running)return;
-let spawned=0;
+game.onclick=(e)=>{
+if(e.target===game && running) gameOver();
+};
+
+/* WAVE */
+function nextWave(){
+if(!running) return;
+
+let count=Math.floor(waveCount*2 + difficulty*3);
+let cleared=0;
+let isBoss = waveCount%5===0;
+
 let interval=setInterval(()=>{
-spawnTarget();
-spawned++;
-if(spawned>=count)clearInterval(interval);
-},10000/count);
+spawnTarget(isBoss);
+},Math.max(200,1000/difficulty));
 
 setTimeout(()=>{
-if(targets.length>0){gameOver()}
-waveLoop(count+2);
-},10000);
+clearInterval(interval);
+if(cleared<count) gameOver();
+else{
+waveCount++;
+nextWave();
 }
+},8000);
 
-/* RUSH MODE */
-function rushLoop(){
-if(!running)return;
-spawnTarget(true);
-spawnRate*=0.95;
-setTimeout(rushLoop,spawnRate);
-}
-
-/* CLASSIC */
-function classic(){
-spawnTarget();
-}
-
-/* SPAWN */
-function spawnTarget(fast=false){
+function spawnTarget(boss){
 let t=document.createElement("div");
-t.className="target";
-let size=fast?40:60;
-t.style.width=size+"px";t.style.height=size+"px";
+let size=boss?80:50;
 
+t.className="target";
+if(boss) t.classList.add("boss");
+
+t.style.width=size+"px";
+t.style.height=size+"px";
 t.style.left=Math.random()*360+"px";
 t.style.top=Math.random()*360+"px";
 
 let start=performance.now();
+let hp = boss ? 3 : 1;
 
-t.onclick=()=>{
-if(!running)return;
-let time=Math.floor(performance.now()-start);
+/* MOVEMENT */
+let dx = (Math.random()-0.5)*4*difficulty;
+let dy = (Math.random()-0.5)*4*difficulty;
+
+let move=setInterval(()=>{
+let x=parseFloat(t.style.left);
+let y=parseFloat(t.style.top);
+
+x+=dx; y+=dy;
+
+if(x<0||x>360) dx*=-1;
+if(y<0||y>360) dy*=-1;
+
+t.style.left=x+"px";
+t.style.top=y+"px";
+},16);
+
+/* LIFE TIMER */
+let timeout=setTimeout(()=>{
+cleanupTarget(t);
+gameOver();
+},boss?2500:1500);
+
+t.onclick=(e)=>{
+e.stopPropagation();
+
+hp--;
+if(hp>0){
+t.style.transform="scale(1.2)";
+setTimeout(()=>t.style.transform="scale(1)",100);
+return;
+}
+
+clearInterval(move);
+clearTimeout(timeout);
+
+/* TIME */
+let time=performance.now()-start;
 history.push(time);
+
+/* SMOOTH DIFFICULTY */
+let avg=history.reduce((a,b)=>a+b,0)/history.length;
+let targetDiff = avg<250?3:avg<400?2.5:avg<600?2:1.5;
+difficulty += (targetDiff - difficulty)*0.1;
+
+difficulty=Math.max(0.5,Math.min(3,difficulty));
 
 score+=10+combo;
 combo++;
+cleared++;
 
-showCombo(t,combo);
-
-t.remove();
-targets.splice(targets.indexOf(t),1);
-
-updateGraph();
+showCombo(t);
+cleanupTarget(t);
+update();
 updateDB();
-
-if(mode==="classic")spawnTarget();
 };
 
 targets.push(t);
 game.appendChild(t);
+
+t.dataset.move=move;
+t.dataset.timeout=timeout;
 }
 
-/* MISS CHECK */
-setInterval(()=>{
-if(running && targets.length>10)gameOver();
-},500);
+}
+
+/* CLEANUP */
+function cleanupTarget(t){
+clearInterval(t.dataset.move);
+clearTimeout(t.dataset.timeout);
+t.remove();
+}
+
+/* COMBO */
+function showCombo(t){
+let c=document.createElement("div");
+c.className="combo";
+c.innerText="x"+combo;
+c.style.left=t.style.left;
+c.style.top=t.style.top;
+game.appendChild(c);
+setTimeout(()=>c.remove(),300);
+}
 
 /* GAME OVER */
 function gameOver(){
 running=false;
-targets.forEach(t=>t.remove());
+targets.forEach(t=>cleanupTarget(t));
 targets=[];
 
-notify.innerText="GAME OVER";
-notify.style.display="block";
-setTimeout(()=>notify.style.display="none",1500);
+/* REAL ELO */
+let expected = 1/(1+Math.pow(10,(1000-elo)/400));
+let actual = score>best?1:0;
+
+elo = Math.round(elo + 32*(actual-expected));
+elo=Math.max(0,elo);
+localStorage.setItem("elo",elo);
+
+if(score>best){
+best=score;
+localStorage.setItem("best",best);
+flash();
 }
 
-/* COMBO FX */
-function showCombo(t,c){
-let fx=document.createElement("div");
-fx.className="comboFx";
-fx.innerText="x"+c;
-fx.style.left=t.style.left;
-fx.style.top=t.style.top;
-game.appendChild(fx);
-setTimeout(()=>fx.remove(),400);
+update();
+}
+
+/* FLASH */
+function flash(){
+let f=document.createElement("div");
+f.className="flash";
+game.appendChild(f);
+setTimeout(()=>f.remove(),300);
+}
+
+/* UPDATE */
+function update(){
+stats.innerHTML=`Score: ${score}<br>Combo: ${combo}<br>Wave: ${waveCount}`;
+bestBox.innerHTML=`Best: ${best}`;
+eloBox.innerHTML=`ELO: ${elo}`;
+rankBox.innerHTML=`Rank: ${getRank(elo)}`;
+drawGraph();
 }
 
 /* GRAPH */
-let offset=0,zoom=1;
-
-graph.onwheel=e=>{
-zoom+=e.deltaY*-0.001;
-drawGraph();
-};
-
-graph.onmousedown=e=>{
-let startX=e.clientX;
-document.onmousemove=ev=>{
-offset+=(ev.clientX-startX);
-startX=ev.clientX;
-drawGraph();
-};
-document.onmouseup=()=>document.onmousemove=null;
-};
-
-function toggleGraph(){
-graphMode=graphMode==="time"?"score":"time";
-drawGraph();
-}
-
-function updateGraph(){drawGraph();}
-
 function drawGraph(){
 let ctx=graph.getContext("2d");
 ctx.clearRect(0,0,graph.width,graph.height);
 
-let data=graphMode==="time"?history:history.map((_,i)=>i*10);
+if(history.length<2)return;
 
-if(data.length<2)return;
-
-let max=Math.max(...data);
-let step=(graph.width/(data.length))*zoom;
+let max=Math.max(...history);
+let step=graph.width/history.length;
 
 ctx.beginPath();
-data.forEach((v,i)=>{
-let x=i*step+offset;
+history.forEach((v,i)=>{
+let x=i*step;
 let y=graph.height-(v/max)*graph.height;
 if(i===0)ctx.moveTo(x,y);
 else ctx.lineTo(x,y);
@@ -233,42 +321,31 @@ ctx.strokeStyle="#00adb5";
 ctx.stroke();
 }
 
-/* MULTIPLAYER */
+/* LEADERBOARD */
 function updateDB(){
-db.ref("scores/"+mode+"/"+playerId).set(score);
+set(ref(db,"scores/"+player),score);
 }
 
-db.ref("scores/"+mode).on("value",snap=>{
+onValue(ref(db,"scores"),snap=>{
 let data=snap.val()||{};
 let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]);
 
-panel.innerHTML="<h3>Leaderboard</h3>";
+panel.innerHTML="";
 arr.slice(0,10).forEach((p,i)=>{
 panel.innerHTML+=`${i+1}. ${p[0]} - ${p[1]}<br>`;
 });
 
-let rank=arr.findIndex(p=>p[0]===playerId)+1;
+let rank=arr.findIndex(p=>p[0]===player)+1;
 panel.innerHTML+=`<hr>Your Rank: ${rank}`;
 });
-</script>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
 
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyCBCF3KYPBdBzEl4XFDmbkzdfZGIR58wRg",
-    authDomain: "reactionarena-12fed.firebaseapp.com",
-    projectId: "reactionarena-12fed",
-    storageBucket: "reactionarena-12fed.firebasestorage.app",
-    messagingSenderId: "701108597411",
-    appId: "1:701108597411:web:6107764625b7d0a2210516"
-  };
+/* START BUTTON */
+let btn=document.createElement("button");
+btn.innerText="Start Game";
+btn.onclick=start;
+document.body.appendChild(btn);
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
+update();
 </script>
 
 </body>
