@@ -50,10 +50,6 @@ canvas{width:100%;background:#000;border-radius:8px}
 <body>
 
 <div class="left">
-<select id="graphMode">
-<option value="reaction">Reaction</option>
-<option value="score">Score</option>
-</select>
 <canvas id="graph" height="200"></canvas>
 <div id="best"></div>
 <div id="elo"></div>
@@ -77,10 +73,8 @@ canvas{width:100%;background:#000;border-radius:8px}
 <div id="pressureBar"><div id="pressure"></div></div>
 
 <div style="margin-top:10px;text-align:center;font-size:14px;">
-Click when target appears.<br>
-Perfect &lt;200ms, Good &lt;400ms.<br>
-Miss = instant loss.<br>
-Stay fast to build pressure.
+Perfect &lt;200ms | Good &lt;400ms<br>
+Miss = instant loss
 </div>
 </div>
 
@@ -155,10 +149,9 @@ if(mode==="wave") waveLoop();
 }
 
 /* SPAWN */
-function spawn(){
+function spawn(moving=false){
 if(!running || currentTarget) return;
 
-/* PRE-CUE */
 let flash=document.createElement("div");
 flash.style.position="absolute";
 flash.style.inset=0;
@@ -167,7 +160,6 @@ game.appendChild(flash);
 
 setTimeout(()=>{
 flash.remove();
-
 if(!running) return;
 
 let t=document.createElement("div");
@@ -180,9 +172,25 @@ t.style.top=Math.random()*370+"px";
 let start=performance.now();
 let clicked=false;
 
+/* movement */
+let dx=(Math.random()-0.5)*2;
+let dy=(Math.random()-0.5)*2;
+let move;
+if(moving){
+move=setInterval(()=>{
+let x=parseFloat(t.style.left);
+let y=parseFloat(t.style.top);
+x+=dx; y+=dy;
+if(x<0||x>370) dx*=-1;
+if(y<0||y>370) dy*=-1;
+t.style.left=x+"px";
+t.style.top=y+"px";
+},16);
+}
+
 let timeout=setTimeout(()=>{
 if(!clicked) gameOver();
-},800 - pressure*2);
+},900 - pressure*2);
 
 t.onclick=(e)=>{
 e.stopPropagation();
@@ -199,6 +207,8 @@ else{ score+=50; pressure-=5; beep(200);}
 pressure=Math.max(0,Math.min(100,pressure));
 
 clearTimeout(timeout);
+clearInterval(move);
+
 t.remove();
 currentTarget=null;
 
@@ -208,32 +218,41 @@ updateUI();
 game.appendChild(t);
 currentTarget=t;
 
-},150);
+},180);
 }
 
-/* LOOPS */
+/* CLASSIC */
 function classicLoop(){
-let base=900;
+let base=1100;
+
 function loop(){
 if(!running) return;
-spawn();
-let variation=Math.sin(score/400)*150;
-setTimeout(loop, base + variation - pressure*2);
+
+let moveChance = score>1000;
+spawn(moveChance);
+
+let variation=Math.sin(score/500)*200;
+setTimeout(loop, base + variation - pressure*1.5);
 }
 loop();
 }
 
+/* RUSH */
 function rushLoop(){
-let speed=500;
+let speed=650;
+
 function loop(){
 if(!running) return;
-spawn();
-speed*=0.97;
-setTimeout(loop, Math.max(120, speed - pressure*2));
+
+spawn(true);
+speed*=0.985;
+
+setTimeout(loop, Math.max(180, speed - pressure*1.5));
 }
 loop();
 }
 
+/* WAVE */
 function waveLoop(){
 let wave=1;
 
@@ -247,18 +266,29 @@ overlay.style.display="flex";
 overlay.innerHTML="Wave "+wave;
 setTimeout(()=>overlay.style.display="none",800);
 
-let end=Date.now()+10000;
+let timer=setTimeout(()=>{
+if(done<required) gameOver();
+},10000);
 
 function next(){
 if(!running) return;
 
 if(done>=required){
+clearTimeout(timer);
+
+overlay.style.display="flex";
+overlay.innerHTML="Wave "+wave+" Complete";
+
+setTimeout(()=>{
+overlay.style.display="none";
 wave++;
-setTimeout(startWave,600);
+startWave();
+},800);
+
 return;
 }
 
-spawn();
+spawn(false);
 
 let check=setInterval(()=>{
 if(history.length>done){
@@ -268,10 +298,6 @@ next();
 }
 },10);
 }
-
-setTimeout(()=>{
-if(done<required) gameOver();
-},10000);
 
 next();
 }
