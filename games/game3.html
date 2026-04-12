@@ -26,7 +26,7 @@ cursor:pointer;
 }
 
 #overlay{
-position:absolute;top:0;left:0;right:0;bottom:0;
+position:absolute;inset:0;
 display:flex;align-items:center;justify-content:center;
 flex-direction:column;
 background:rgba(0,0,0,0.6);
@@ -148,13 +148,13 @@ if(mode==="rush") rushLoop();
 if(mode==="wave") waveLoop();
 }
 
-/* SPAWN */
-function spawnWaveTarget(){
-return new Promise((resolve, reject)=>{
+/* UNIVERSAL SPAWN */
+function spawn(moving=false){
+return new Promise((resolve,reject)=>{
 
-if(!running) return;
+if(!running || currentTarget) return;
 
-/* PRE-CUE */
+/* cue */
 let flash=document.createElement("div");
 flash.style.position="absolute";
 flash.style.inset=0;
@@ -176,47 +176,10 @@ t.style.top=Math.random()*370+"px";
 let start=performance.now();
 let clicked=false;
 
-/* FAIL TIMER */
-let timeout=setTimeout(()=>{
-if(!clicked){
-t.remove();
-reject("fail");
-}
-},900);
-
-/* CLICK */
-t.onclick=(e)=>{
-e.stopPropagation();
-if(clicked) return;
-clicked=true;
-
-let rt=performance.now()-start;
-history.push(rt);
-
-/* scoring */
-if(rt<200){ score+=300; pressure+=10; beep(800);}
-else if(rt<400){ score+=150; pressure+=5; beep(500);}
-else{ score+=50; pressure-=5; beep(200);}
-
-pressure=Math.max(0,Math.min(100,pressure));
-
-clearTimeout(timeout);
-t.remove();
-
-updateUI();
-resolve("hit");
-};
-
-game.appendChild(t);
-
-},180);
-
-});
-}
-
 /* movement */
 let dx=(Math.random()-0.5)*2;
 let dy=(Math.random()-0.5)*2;
+
 let move;
 if(moving){
 move=setInterval(()=>{
@@ -230,10 +193,16 @@ t.style.top=y+"px";
 },16);
 }
 
+/* fail */
 let timeout=setTimeout(()=>{
-if(!clicked) gameOver();
+if(!clicked){
+t.remove();
+currentTarget=null;
+reject("fail");
+}
 },900 - pressure*2);
 
+/* click */
 t.onclick=(e)=>{
 e.stopPropagation();
 if(clicked) return;
@@ -255,12 +224,15 @@ t.remove();
 currentTarget=null;
 
 updateUI();
+resolve("hit");
 };
 
 game.appendChild(t);
 currentTarget=t;
 
 },180);
+
+});
 }
 
 /* CLASSIC */
@@ -270,12 +242,9 @@ let base=1000;
 function loop(){
 if(!running) return;
 
-/* movement always ON */
-spawn(true);
+spawn(true).catch(()=>gameOver());
 
-/* movement intensity increases */
-let variation = Math.sin(score/400)*150;
-let speedScale = Math.min(3, 1 + score/2000);
+let variation=Math.sin(score/400)*150;
 
 setTimeout(loop, base + variation - pressure*1.2);
 }
@@ -289,19 +258,16 @@ let speed=600;
 function loop(){
 if(!running) return;
 
-/* slight movement */
-spawn(true);
+spawn(true).catch(()=>gameOver());
 
-/* controlled acceleration */
-speed *= 0.97;
-
-/* small rhythm variation */
-let variation = Math.sin(score/300)*40;
+speed*=0.97;
+let variation=Math.sin(score/300)*40;
 
 setTimeout(loop, Math.max(140, speed + variation - pressure));
 }
 loop();
 }
+
 /* WAVE */
 async function waveLoop(){
 let wave=1;
@@ -310,7 +276,6 @@ while(running){
 
 let required = wave * 2;
 
-/* SHOW WAVE */
 overlay.style.display="flex";
 overlay.innerHTML="Wave " + wave;
 await new Promise(r=>setTimeout(r,800));
@@ -319,22 +284,14 @@ overlay.style.display="none";
 let startTime = Date.now();
 
 try{
-
 for(let i=0;i<required;i++){
 
-/* time check */
-if(Date.now() - startTime > 10000){
-throw "timeout";
-}
+if(Date.now()-startTime>10000) throw "timeout";
 
-/* wait for player */
-await spawnWaveTarget();
-
-/* small gap */
+await spawn(false);
 await new Promise(r=>setTimeout(r,120));
 }
 
-/* WAVE COMPLETE */
 overlay.style.display="flex";
 overlay.innerHTML="Wave " + wave + " Complete";
 await new Promise(r=>setTimeout(r,800));
@@ -342,13 +299,14 @@ overlay.style.display="none";
 
 wave++;
 
-}catch(e){
+}catch{
 gameOver();
 return;
 }
 
 }
 }
+
 /* GAME OVER */
 function gameOver(){
 if(!running) return;
@@ -395,11 +353,9 @@ currentTarget=null;
 function updateUI(){
 document.getElementById("best").innerHTML=
 `Best: ${bests.classic||0}/${bests.rush||0}/${bests.wave||0}`;
-
 document.getElementById("elo").innerHTML=`ELO: ${elo}`;
 document.getElementById("rank").innerHTML=`Rank: ${getRank(elo)}`;
 document.getElementById("pressure").style.width=pressure+"%";
-
 drawGraph();
 }
 
