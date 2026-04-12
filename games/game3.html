@@ -247,20 +247,19 @@ let speed=600;
 function loop(){
 if(!running) return;
 
-/* NO movement, pure reaction */
-spawn(false);
+/* slight movement */
+spawn(true);
 
-/* faster spawn */
+/* controlled acceleration */
 speed *= 0.97;
 
 /* small rhythm variation */
-let variation = Math.sin(score/300)*50;
+let variation = Math.sin(score/300)*40;
 
-setTimeout(loop, Math.max(120, speed + variation - pressure));
+setTimeout(loop, Math.max(140, speed + variation - pressure));
 }
 loop();
 }
-
 /* WAVE */
 function waveLoop(){
 let wave=1;
@@ -276,15 +275,18 @@ overlay.style.display="flex";
 overlay.innerHTML="Wave " + wave;
 setTimeout(()=>overlay.style.display="none",800);
 
-/* TIMER */
+/* FAIL TIMER */
 let timer = setTimeout(()=>{
-if(completed < required) gameOver();
+if(completed < required){
+gameOver();
+}
 },10000);
 
-/* CONTROLLED SPAWN LOOP */
+/* SPAWN CONTROL */
 function spawnNext(){
 if(!running) return;
 
+/* SUCCESS */
 if(completed >= required){
 clearTimeout(timer);
 
@@ -301,21 +303,23 @@ startWave();
 return;
 }
 
-/* spawn ONE */
+/* spawn ONE target */
 spawn(false);
 
-/* WAIT UNTIL CLICKED */
+/* wait for click or fail */
 let check = setInterval(()=>{
 if(!running){
 clearInterval(check);
 return;
 }
 
-/* detect click by target removal */
+/* if target gone → counted */
 if(!currentTarget){
 completed++;
 clearInterval(check);
-spawnNext();
+
+/* slight delay between spawns */
+setTimeout(spawnNext, 150);
 }
 },10);
 }
