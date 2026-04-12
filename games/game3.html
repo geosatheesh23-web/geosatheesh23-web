@@ -149,9 +149,12 @@ if(mode==="wave") waveLoop();
 }
 
 /* SPAWN */
-function spawn(moving=false){
-if(!running || currentTarget) return;
+function spawnWaveTarget(){
+return new Promise((resolve, reject)=>{
 
+if(!running) return;
+
+/* PRE-CUE */
 let flash=document.createElement("div");
 flash.style.position="absolute";
 flash.style.inset=0;
@@ -160,6 +163,7 @@ game.appendChild(flash);
 
 setTimeout(()=>{
 flash.remove();
+
 if(!running) return;
 
 let t=document.createElement("div");
@@ -171,6 +175,44 @@ t.style.top=Math.random()*370+"px";
 
 let start=performance.now();
 let clicked=false;
+
+/* FAIL TIMER */
+let timeout=setTimeout(()=>{
+if(!clicked){
+t.remove();
+reject("fail");
+}
+},900);
+
+/* CLICK */
+t.onclick=(e)=>{
+e.stopPropagation();
+if(clicked) return;
+clicked=true;
+
+let rt=performance.now()-start;
+history.push(rt);
+
+/* scoring */
+if(rt<200){ score+=300; pressure+=10; beep(800);}
+else if(rt<400){ score+=150; pressure+=5; beep(500);}
+else{ score+=50; pressure-=5; beep(200);}
+
+pressure=Math.max(0,Math.min(100,pressure));
+
+clearTimeout(timeout);
+t.remove();
+
+updateUI();
+resolve("hit");
+};
+
+game.appendChild(t);
+
+},180);
+
+});
+}
 
 /* movement */
 let dx=(Math.random()-0.5)*2;
@@ -261,73 +303,51 @@ setTimeout(loop, Math.max(140, speed + variation - pressure));
 loop();
 }
 /* WAVE */
-function waveLoop(){
+async function waveLoop(){
 let wave=1;
 
-function startWave(){
-if(!running) return;
+while(running){
 
 let required = wave * 2;
-let completed = 0;
 
-/* SHOW WAVE START */
+/* SHOW WAVE */
 overlay.style.display="flex";
 overlay.innerHTML="Wave " + wave;
-setTimeout(()=>overlay.style.display="none",800);
+await new Promise(r=>setTimeout(r,800));
+overlay.style.display="none";
 
-/* FAIL TIMER */
-let timer = setTimeout(()=>{
-if(completed < required){
-gameOver();
+let startTime = Date.now();
+
+try{
+
+for(let i=0;i<required;i++){
+
+/* time check */
+if(Date.now() - startTime > 10000){
+throw "timeout";
 }
-},10000);
 
-/* SPAWN CONTROL */
-function spawnNext(){
-if(!running) return;
+/* wait for player */
+await spawnWaveTarget();
 
-/* SUCCESS */
-if(completed >= required){
-clearTimeout(timer);
+/* small gap */
+await new Promise(r=>setTimeout(r,120));
+}
 
 /* WAVE COMPLETE */
 overlay.style.display="flex";
 overlay.innerHTML="Wave " + wave + " Complete";
-
-setTimeout(()=>{
+await new Promise(r=>setTimeout(r,800));
 overlay.style.display="none";
+
 wave++;
-startWave();
-},800);
 
+}catch(e){
+gameOver();
 return;
 }
 
-/* spawn ONE target */
-spawn(false);
-
-/* wait for click or fail */
-let check = setInterval(()=>{
-if(!running){
-clearInterval(check);
-return;
 }
-
-/* if target gone → counted */
-if(!currentTarget){
-completed++;
-clearInterval(check);
-
-/* slight delay between spawns */
-setTimeout(spawnNext, 150);
-}
-},10);
-}
-
-spawnNext();
-}
-
-startWave();
 }
 /* GAME OVER */
 function gameOver(){
