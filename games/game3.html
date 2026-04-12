@@ -6,8 +6,6 @@
 
 <style>
 body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;height:100vh}
-
-/* LAYOUT */
 .left{width:25%;padding:10px}
 .center{flex:1;display:flex;flex-direction:column;align-items:center}
 .right{width:25%;padding:10px;overflow:auto}
@@ -15,21 +13,29 @@ body{margin:0;background:#0d0d0d;color:#fff;font-family:Arial;display:flex;heigh
 .topbar{margin-bottom:10px}
 
 #game{
-width:420px;height:420px;
-background:#111;border-radius:12px;
+width:420px;height:420px;background:#111;border-radius:12px;
 position:relative;overflow:hidden;
 }
 
 .target{
-position:absolute;border-radius:50%;
-background:#00adb5;cursor:pointer;
+position:absolute;border-radius:50%;background:#00adb5;cursor:pointer;
 }
 
-.boss{background:red;box-shadow:0 0 20px red;}
+#pressureBar{
+height:10px;background:#222;margin-top:5px;border-radius:5px;overflow:hidden;
+}
+#pressure{
+height:100%;width:0%;background:#00ffcc;
+}
+
+#gameOver{
+position:absolute;top:0;left:0;right:0;bottom:0;
+background:rgba(0,0,0,0.8);
+display:none;align-items:center;justify-content:center;flex-direction:column;
+}
 
 button,select{
-padding:8px;margin:5px;background:#00adb5;
-border:none;color:white;border-radius:6px;cursor:pointer;
+padding:8px;margin:5px;background:#00adb5;border:none;color:white;border-radius:6px;cursor:pointer;
 }
 
 canvas{width:100%;background:#000;border-radius:8px}
@@ -40,11 +46,10 @@ canvas{width:100%;background:#000;border-radius:8px}
 
 <div class="left">
 <select id="graphMode">
-<option value="reaction">Reaction Time</option>
+<option value="reaction">Reaction</option>
 <option value="score">Score</option>
 </select>
 <canvas id="graph" height="200"></canvas>
-
 <div id="best"></div>
 <div id="elo"></div>
 <div id="rank"></div>
@@ -60,7 +65,19 @@ canvas{width:100%;background:#000;border-radius:8px}
 <button id="start">Start</button>
 </div>
 
-<div id="game"></div>
+<div id="game">
+<div id="gameOver"></div>
+</div>
+
+<div id="pressureBar"><div id="pressure"></div></div>
+
+<div style="margin-top:10px;text-align:center;font-size:14px;">
+Click targets as fast as possible.<br>
+Perfect timing gives more score.<br>
+Miss = instant loss.<br>
+Pressure increases difficulty.
+</div>
+
 </div>
 
 <div class="right">
@@ -72,13 +89,13 @@ canvas{width:100%;background:#000;border-radius:8px}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
-/* 🔑 PUT YOUR REAL CONFIG HERE */
 const firebaseConfig = {
   apiKey: "AIzaSyCBCF3KYPBdBzEl4XFDmbkzdfZGIR58wRg",
   authDomain: "reactionarena-12fed.firebaseapp.com",
   databaseURL: "https://reactionarena-12fed-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "reactionarena-12fed"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -93,23 +110,25 @@ if(!player){
 let running=false,mode="classic";
 let score=0,elo=parseInt(localStorage.getItem("elo")||1000);
 let bests=JSON.parse(localStorage.getItem("bests")||'{}');
+let history=[],targets=[],ghost=[];
 
-let history=[],targets=[];
+let pressure=0;
 
 /* UI */
 const game=document.getElementById("game");
-const graph=document.getElementById("graph");
 const panel=document.getElementById("panel");
+const pressureBar=document.getElementById("pressure");
+const gameOverBox=document.getElementById("gameOver");
 
-/* RANK */
-function getRank(e){
-if(e<800) return "Iron";
-if(e<1000) return "Bronze";
-if(e<1200) return "Silver";
-if(e<1400) return "Gold";
-if(e<1600) return "Platinum";
-if(e<1800) return "Diamond";
-return "Master";
+/* SOUND */
+function play(freq){
+let ctx=new AudioContext();
+let o=ctx.createOscillator();
+let g=ctx.createGain();
+o.connect(g);g.connect(ctx.destination);
+o.frequency.value=freq;
+o.start();
+g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.2);
 }
 
 /* START */
@@ -122,83 +141,54 @@ function startGame(){
 running=true;
 score=0;
 history=[];
+ghost=[...history];
+pressure=0;
 clearTargets();
+gameOverBox.style.display="none";
 
 if(mode==="classic") classicLoop();
 if(mode==="rush") rushLoop();
 if(mode==="wave") waveLoop();
 }
 
-/* GAME OVER */
-function gameOver(){
-running=false;
-clearTargets();
-
-/* ELO vs leaderboard */
-onValue(ref(db,"scores"),snap=>{
-let data=snap.val()||{};
-let players=Object.values(data);
-
-let avg = players.length ? players.reduce((a,b)=>a+b,0)/players.length : 1000;
-let expected = 1/(1+Math.pow(10,(avg-elo)/400));
-let actual = score>avg?1:0;
-
-elo = Math.round(elo + 32*(actual-expected));
-localStorage.setItem("elo",elo);
-
-updateUI();
-},{onlyOnce:true});
-
-/* BEST */
-if(!bests[mode] || score>bests[mode]){
-bests[mode]=score;
-localStorage.setItem("bests",JSON.stringify(bests));
-}
-
-updateDB();
-}
-
 /* TARGET */
-function spawn(moving=false,boss=false){
+function spawn(){
+let delay=200+Math.random()*600;
+
+setTimeout(()=>{
+if(!running) return;
+
 let t=document.createElement("div");
-let size=boss?70:40;
-
 t.className="target";
-if(boss) t.classList.add("boss");
-
-t.style.width=size+"px";
-t.style.height=size+"px";
-t.style.left=Math.random()*380+"px";
-t.style.top=Math.random()*380+"px";
+t.style.width="50px";
+t.style.height="50px";
+t.style.left=Math.random()*370+"px";
+t.style.top=Math.random()*370+"px";
 
 let start=performance.now();
+let valid=false;
 
-let dx=(Math.random()-0.5)*6;
-let dy=(Math.random()-0.5)*6;
+setTimeout(()=>valid=true,60); // anti-cheat
 
-let move;
-if(moving){
-move=setInterval(()=>{
-let x=parseFloat(t.style.left)+dx;
-let y=parseFloat(t.style.top)+dy;
-if(x<0||x>380) dx*=-1;
-if(y<0||y>380) dy*=-1;
-t.style.left=x+"px";
-t.style.top=y+"px";
-},16);
-}
-
-let timeout=setTimeout(()=>gameOver(),boss?1200:800);
+let timeout=setTimeout(()=>gameOver(),900-pressure*200);
 
 t.onclick=(e)=>{
 e.stopPropagation();
+if(!valid) return;
 
 let rt=performance.now()-start;
 history.push(rt);
 
-score+=Math.max(0,500-rt);
+/* PERFECT SYSTEM */
+let points=0;
+if(rt<200){ points=300; play(800); pressure+=10; }
+else if(rt<400){ points=150; play(500); pressure+=5; }
+else{ points=50; play(200); pressure-=5; }
 
-clearInterval(move);
+pressure=Math.max(0,Math.min(100,pressure));
+
+score+=points*(1+pressure/100);
+
 clearTimeout(timeout);
 t.remove();
 
@@ -206,24 +196,32 @@ updateUI();
 };
 
 game.appendChild(t);
-targets.push({el:t,move,timeout});
+targets.push(t);
+
+},delay);
 }
 
 /* LOOPS */
 function classicLoop(){
+let base=800;
 function loop(){
 if(!running) return;
-spawn(false,false);
-setTimeout(loop,800);
+
+spawn();
+base+=Math.sin(score/500)*50; // rhythm shift
+setTimeout(loop,base - pressure*3);
 }
 loop();
 }
 
 function rushLoop(){
+let speed=400;
 function loop(){
 if(!running) return;
-spawn(true,false);
-setTimeout(loop,300);
+
+spawn();
+speed*=0.98; // faster over time
+setTimeout(loop,Math.max(120,speed - pressure*2));
 }
 loop();
 }
@@ -231,38 +229,98 @@ loop();
 function waveLoop(){
 let wave=1;
 
-function loop(){
+function runWave(){
 if(!running) return;
 
-for(let i=0;i<wave;i++){
-spawn(true,wave%5===0);
+let needed=wave*2;
+let done=0;
+
+let timer=setTimeout(()=>{
+if(done<needed) gameOver();
+else{
+wave++;
+runWave();
+}
+},10000);
+
+function spawnWave(){
+if(done>=needed) return;
+spawn();
+
+let check=setInterval(()=>{
+if(history.length>done){
+done++;
+clearInterval(check);
+}
+},10);
 }
 
-wave++;
-setTimeout(loop,1200);
+for(let i=0;i<needed;i++){
+setTimeout(spawnWave,i*1000);
 }
-loop();
+}
+runWave();
+}
+
+/* GAME OVER */
+function gameOver(){
+running=false;
+clearTargets();
+
+gameOverBox.style.display="flex";
+gameOverBox.innerHTML=`Game Over<br>Score: ${Math.floor(score)}`;
+
+play(100);
+
+/* ELO */
+onValue(ref(db,"scores"),snap=>{
+let data=snap.val()||{};
+let avg = Object.values(data).reduce((a,b)=>a+b,0)/Object.values(data).length || 1000;
+
+let expected=1/(1+Math.pow(10,(avg-elo)/400));
+let actual=score>avg?1:0;
+
+elo=Math.round(elo+32*(actual-expected));
+localStorage.setItem("elo",elo);
+
+updateUI();
+},{onlyOnce:true});
+
+/* SAVE BEST */
+if(!bests[mode]||score>bests[mode]){
+bests[mode]=score;
+localStorage.setItem("bests",JSON.stringify(bests));
+}
+
+set(ref(db,"scores/"+player),elo);
 }
 
 /* CLEAN */
 function clearTargets(){
-targets.forEach(t=>{
-clearInterval(t.move);
-clearTimeout(t.timeout);
-t.el.remove();
-});
+targets.forEach(t=>t.remove());
 targets=[];
 }
 
 /* UI */
 function updateUI(){
 document.getElementById("best").innerHTML=
-`Best (C/R/W): ${bests.classic||0} / ${bests.rush||0} / ${bests.wave||0}`;
+`Best: ${bests.classic||0}/${bests.rush||0}/${bests.wave||0}`;
 
 document.getElementById("elo").innerHTML=`ELO: ${elo}`;
 document.getElementById("rank").innerHTML=`Rank: ${getRank(elo)}`;
 
+pressureBar.style.width=pressure+"%";
 drawGraph();
+}
+
+function getRank(e){
+if(e<800)return"Iron";
+if(e<1000)return"Bronze";
+if(e<1200)return"Silver";
+if(e<1400)return"Gold";
+if(e<1600)return"Platinum";
+if(e<1800)return"Diamond";
+return"Master";
 }
 
 /* GRAPH */
@@ -272,30 +330,21 @@ ctx.clearRect(0,0,graph.width,graph.height);
 
 if(history.length<2) return;
 
-let mode=document.getElementById("graphMode").value;
-
 let max=Math.max(...history);
 let step=graph.width/history.length;
 
 ctx.beginPath();
 history.forEach((v,i)=>{
-let val = mode==="reaction"?v:(i+1)*50;
 let x=i*step;
-let y=graph.height-(val/max)*graph.height;
-
-if(i===0) ctx.moveTo(x,y);
+let y=graph.height-(v/max)*graph.height;
+if(i===0)ctx.moveTo(x,y);
 else ctx.lineTo(x,y);
 });
-
 ctx.strokeStyle="#00adb5";
 ctx.stroke();
 }
 
-/* DB */
-function updateDB(){
-set(ref(db,"scores/"+player),elo);
-}
-
+/* LEADERBOARD */
 onValue(ref(db,"scores"),snap=>{
 let data=snap.val()||{};
 let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]);
