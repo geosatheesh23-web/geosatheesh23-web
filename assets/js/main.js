@@ -1,97 +1,25 @@
-// ===============================
-// ⚡ THEME ENGINE (NO FLICKER)
-// ===============================
 (function () {
   const saved = localStorage.getItem("theme");
-
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
   const theme = saved ? saved : (systemDark ? "dark" : "light");
-
   document.documentElement.setAttribute("data-theme", theme);
 })();
-  
 
-// ===============================
-// 🎛️ MAIN LOGIC
-// ===============================
 document.addEventListener("DOMContentLoaded", () => {
   const toggle = document.getElementById("themeToggle");
-  const reset = document.getElementById("themeReset");
-
   const root = document.documentElement;
 
-  const getTheme = () => root.getAttribute("data-theme");
-
-  const setTheme = (theme, save = true) => {
-    root.setAttribute("data-theme", theme);
-    if (save) localStorage.setItem("theme", theme);
-    updateUI(theme);
+  const updateText = () => {
+    const isDark = root.getAttribute("data-theme") === "dark";
+    toggle.textContent = isDark ? "☀️ Day" : "🌙 Night";
   };
 
-  const updateUI = (theme) => {
-    if (!toggle) return;
+  updateText();
 
-    // Clean UI (no cringe emoji spam)
-    toggle.innerHTML = theme === "dark"
-      ? `<span class="icon sun"></span>`
-      : `<span class="icon moon"></span>`;
-  };
-
-  // INIT UI
-  updateUI(getTheme());
-
-  // TOGGLE
-  if (toggle) {
-    toggle.addEventListener("click", () => {
-      const newTheme = getTheme() === "dark" ? "light" : "dark";
-      setTheme(newTheme, true);
-    });
-  }
-
-  // RESET (back to system)
-  if (reset) {
-    reset.addEventListener("click", () => {
-      localStorage.removeItem("theme");
-
-      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setTheme(systemDark ? "dark" : "light", false);
-    });
-  }
-
-  // SYSTEM CHANGE (only if no override)
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
-    if (!localStorage.getItem("theme")) {
-      setTheme(e.matches ? "dark" : "light", false);
-    }
+  toggle.addEventListener("click", () => {
+    const newTheme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", newTheme);
+    localStorage.setItem("theme", newTheme);
+    updateText();
   });
-});
-// ===============================
-// ✨ CLICK EFFECT
-// ===============================
-document.addEventListener("click", (e) => {
-  const el = document.createElement("div");
-  el.className = "click-effect";
-  el.style.left = e.clientX + "px";
-  el.style.top = e.clientY + "px";
-  document.body.appendChild(el);
-
-  setTimeout(() => el.remove(), 400);
-});
-
-
-// ===============================
-// 🚀 PAGE TRANSITION (smooth navigation)
-// ===============================
-document.querySelectorAll("a").forEach(link => {
-  if (link.href && link.hostname === location.hostname) {
-    link.addEventListener("click", function(e) {
-      e.preventDefault();
-      document.body.style.opacity = 0;
-
-      setTimeout(() => {
-        window.location = link.href;
-      }, 200);
-    });
-  }
 });
