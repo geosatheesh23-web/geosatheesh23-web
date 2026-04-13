@@ -183,7 +183,10 @@ const overlay = document.getElementById("overlay");
 const result = document.getElementById("result");
 const final = document.getElementById("final");
 
-/* INIT */
+/* =========================
+   GAME CORE (UNCHANGED)
+========================= */
+
 function newGame() {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
     score = 0;
@@ -193,7 +196,6 @@ function newGame() {
     render();
 }
 
-/* SPAWN */
 function spawn() {
     let empty = [];
     for (let i = 0; i < SIZE; i++) {
@@ -206,7 +208,6 @@ function spawn() {
     board[spot.i][spot.j] = Math.random() < 0.9 ? 2 : 4;
 }
 
-/* SLIDE */
 function slide(row) {
     row = row.filter(v => v);
     for (let i = 0; i < row.length - 1; i++) {
@@ -224,7 +225,6 @@ function pad(row) {
     return row;
 }
 
-/* MOVE */
 function move(dir) {
     let old = JSON.stringify(board);
     let newB = JSON.parse(JSON.stringify(board));
@@ -257,7 +257,6 @@ function move(dir) {
     }
 }
 
-/* GAME OVER */
 function checkGameOver() {
     for (let i = 0; i < SIZE; i++) {
         for (let j = 0; j < SIZE; j++) {
@@ -271,7 +270,6 @@ function checkGameOver() {
     final.textContent = "Score: " + score;
 }
 
-/* BEST */
 function saveBest() {
     if (score > best) {
         best = score;
@@ -279,7 +277,10 @@ function saveBest() {
     }
 }
 
-/* RENDER */
+/* =========================
+   RENDER
+========================= */
+
 function render() {
     grid.innerHTML = "";
 
@@ -312,19 +313,25 @@ function render() {
     bestEl.textContent = best;
 }
 
-/* INPUT - FIXED (REAL DRAG TRACKING) */
+/* =========================
+   FIXED SWIPE ENGINE (REAL)
+========================= */
+
 let startX = 0;
 let startY = 0;
-let isDown = false;
+let dragging = false;
+
+const THRESHOLD = 30;
 
 grid.addEventListener("pointerdown", (e) => {
-    isDown = true;
+    dragging = true;
     startX = e.clientX;
     startY = e.clientY;
 });
 
-grid.addEventListener("pointermove", (e) => {
-    if (!isDown) return;
+grid.addEventListener("pointerup", (e) => {
+    if (!dragging) return;
+    dragging = false;
 
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -332,20 +339,13 @@ grid.addEventListener("pointermove", (e) => {
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    // trigger once per drag (prevents spam)
-    if (absX < 40 && absY < 40) return;
-
-    isDown = false; // lock until next swipe
+    if (Math.max(absX, absY) < THRESHOLD) return;
 
     if (absX > absY) {
         move(dx > 0 ? "right" : "left");
     } else {
         move(dy > 0 ? "down" : "up");
     }
-});
-
-grid.addEventListener("pointerup", () => {
-    isDown = false;
 });
 
 document.addEventListener("keydown", e => {
