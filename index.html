@@ -89,6 +89,27 @@
   <p>GameHub © 2026</p>
 </footer>
 
+<script>
+function updateUserStatus(){
+  const user = JSON.parse(localStorage.getItem("gamehub_user"));
+  const guest = localStorage.getItem("gamehub_guest");
+
+  const box = document.getElementById("userStatus");
+
+  if(user){
+    box.innerText = "👤 " + user.email;
+  }
+  else if(guest){
+    box.innerText = "🎮 Guest Mode";
+  }
+  else{
+    box.innerText = "🎮 Guest Mode";
+  }
+}
+
+updateUserStatus();
+</script>
+  
 <script src="assets/js/main.js"></script>
 </body>
 </html>
