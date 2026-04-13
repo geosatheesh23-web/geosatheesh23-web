@@ -1,13 +1,8 @@
-/* ===============================
-   🌍 THEME SYSTEM (IMPROVED LIGHT MODE)
-=============================== */
 :root {
   --bg: #f7f9fc;
   --text: #1a1a1a;
-
   --card: #ffffff;
   --border: #e2e8f0;
-
   --accent: #4da6ff;
   --accent-glow: rgba(77,166,255,0.25);
 }
@@ -15,19 +10,14 @@
 [data-theme="dark"] {
   --bg: #0d0d0d;
   --text: #ffffff;
-
   --card: #1a1a1a;
-  --border: #333333;
-
+  --border: #333;
   --accent-glow: rgba(77,166,255,0.6);
 }
 
-/* ===============================
-   🧱 BASE
-=============================== */
 * {
   box-sizing: border-box;
-  transition: background 0.25s, color 0.25s, border 0.25s, box-shadow 0.25s, transform 0.2s;
+  transition: all 0.25s ease;
 }
 
 body {
@@ -37,66 +27,49 @@ body {
   color: var(--text);
 }
 
-/* ===============================
-   🔝 HEADER (FIXED ALIGNMENT)
-=============================== */
+/* HEADER */
 .main-header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-
   padding: 15px 25px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
 
-.logo {
-  font-weight: bold;
-  font-size: 18px;
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-.main-header nav {
-  text-align: center;
-}
-
-.main-header nav a {
-  margin: 0 10px;
+.nav a {
   text-decoration: none;
   color: var(--text);
   opacity: 0.7;
 }
 
-.main-header nav a:hover {
+.nav a:hover,
+.nav a.active {
   opacity: 1;
   color: var(--accent);
 }
 
-/* ===============================
-   🎛️ THEME CONTROLS (FIXED)
-=============================== */
-.theme-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.theme-btn, .theme-reset {
-  padding: 6px 10px;
-  border-radius: 6px;
+/* THEME BUTTON */
+.theme-toggle {
+  padding: 6px 12px;
+  border-radius: 20px;
   border: 1px solid var(--border);
   background: var(--card);
   cursor: pointer;
-  font-size: 12px;
 }
 
-.theme-btn:hover,
-.theme-reset:hover {
+.theme-toggle:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-/* ===============================
-   🚀 HERO (BETTER SPACING)
-=============================== */
+/* HERO */
 .hero {
   text-align: center;
   padding: 80px 20px 60px;
@@ -104,142 +77,96 @@ body {
 
 .hero h1 {
   font-size: 42px;
-  margin-bottom: 10px;
   text-shadow: 0 0 10px var(--accent-glow);
 }
 
-.hero p {
-  opacity: 0.7;
-  margin-bottom: 20px;
-}
-
-/* ===============================
-   🔘 BUTTONS (FIXED CONSISTENCY)
-=============================== */
+/* BUTTONS */
 .hero-buttons {
   display: flex;
   justify-content: center;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .btn {
   padding: 10px 18px;
   border-radius: 8px;
   text-decoration: none;
-  font-weight: 500;
-
   background: var(--accent);
   color: white;
-  border: none;
-
-  box-shadow: 0 0 10px var(--accent-glow);
-}
-
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 18px var(--accent-glow);
 }
 
 .btn.secondary {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
-  box-shadow: none;
 }
 
-.btn.secondary:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ===============================
-   ✨ FEATURES (CLEANED)
-=============================== */
+/* FEATURES */
 .features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
   padding: 30px;
+  flex-wrap: wrap;
 }
 
 .feature-card {
   background: var(--card);
-  padding: 20px;
-  border-radius: 10px;
+  padding: 15px 20px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  text-align: center;
 }
 
-/* ===============================
-   🎮 GRID
-=============================== */
+/* GRID */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
   gap: 20px;
   padding: 30px;
 }
 
-/* ===============================
-   🧩 CARDS (CLEAN + CONSISTENT)
-=============================== */
+/* CARD (IMAGE ALWAYS VISIBLE) */
 .card {
   position: relative;
-  background: var(--card);
-  padding: 20px;
-  border-radius: 12px;
-  text-decoration: none;
-  color: var(--text);
-
-  border: 1px solid var(--border);
+  height: 180px;
+  border-radius: 14px;
   overflow: hidden;
+  text-decoration: none;
+  color: white;
+  border: 1px solid var(--border);
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  border-color: var(--accent);
-  box-shadow: 0 0 15px var(--accent-glow);
-}
-
-/* preview */
 .preview {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
-  opacity: 0;
 }
 
-.card:hover .preview {
-  opacity: 0.12;
+/* DARK GRADIENT FOR TEXT READABILITY */
+.preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
 }
 
-/* ===============================
-   🔚 FOOTER
-=============================== */
+.card-content {
+  position: absolute;
+  bottom: 0;
+  padding: 15px;
+  z-index: 2;
+}
+
+/* HOVER EFFECT */
+.card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* FOOTER */
 .footer {
   text-align: center;
   padding: 20px;
   opacity: 0.6;
-}
-
-/* ===============================
-   ✨ CLICK EFFECT
-=============================== */
-.click-effect {
-  position: fixed;
-  width: 10px;
-  height: 10px;
-  background: var(--accent);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: click 0.4s forwards;
-}
-
-@keyframes click {
-  to {
-    transform: scale(10);
-    opacity: 0;
-  }
 }
