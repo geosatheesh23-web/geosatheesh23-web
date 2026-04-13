@@ -3,22 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <title>GameHub</title>
-  <link rel="stylesheet" href="assets/css/style.css">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
+
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
 <body>
 
 <header class="main-header">
   <div class="logo">🎮 GameHub</div>
-  <div class="theme-controls">
-    <button id="themeToggle" class="theme-btn"></button>
-    <button id="themeReset" class="theme-reset">Reset</button>
-  </div>
+
   <nav>
     <a href="index.html">Home</a>
     <a href="more.html">More</a>
   </nav>
+
+  <div class="theme-controls">
+    <button id="themeToggle" class="theme-btn"></button>
+    <button id="themeReset" class="theme-reset">Reset</button>
+  </div>
 </header>
 
 <section class="hero">
@@ -41,35 +46,41 @@
 <section id="games" class="grid">
 
   <a class="card" href="games/game1.html">
+    <div class="preview" style="background-image:url('assets/images/2048.png')"></div>
     <h3>2048</h3>
     <p>Puzzle sliding game</p>
   </a>
 
   <a class="card" href="games/game2.html">
+    <div class="preview" style="background-image:url('assets/images/tictactoe.png')"></div>
     <h3>Tic Tac Toe</h3>
     <p>Classic 2-player game</p>
   </a>
   
   <a class="card" href="games/game5.html">
+    <div class="preview" style="background-image:url('assets/images/reaction.png')"></div>
     <h3>Reaction Test</h3>
     <p>Test your speed</p>
   </a>
   
-   <a class="card" href="games/game4.html">
+  <a class="card" href="games/game4.html">
+    <div class="preview" style="background-image:url('assets/images/memory.png')"></div>
     <h3>Memory Match</h3>
     <p>Flip and match cards</p>
   </a>
   
- <a class="card" href="games/game3.html">
+  <a class="card" href="games/game3.html">
+    <div class="preview" style="background-image:url('assets/images/rps.png')"></div>
     <h3>Rock Paper Scissors</h3>
     <p>Play vs computer</p>
   </a>
 
 </section>
-<script src="assets/js/main.js"></script>
+
 <footer class="footer">
   <p>GameHub © 2026</p>
 </footer>
 
+<script src="assets/js/main.js"></script>
 </body>
 </html>
