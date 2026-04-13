@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GameHub Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0d0f14;
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
+
+.box{
+  width:100%;
+  max-width:400px;
+  background:rgba(255,255,255,0.06);
+  padding:25px;
+  border-radius:16px;
+}
+
+h2{text-align:center;}
+
+input{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border-radius:10px;
+  border:1px solid #333;
+  background:transparent;
+  color:white;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.primary{background:#4f8cff;color:white;}
+.secondary{background:transparent;border:1px solid #444;color:white;}
+
+#msg{
+  text-align:center;
+  margin-top:10px;
+  font-size:13px;
+  opacity:0.8;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <h2>🎮 GameHub Login</h2>
+
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <button class="primary" onclick="signUp()">Sign Up</button>
+  <button class="primary" onclick="signIn()">Sign In</button>
+
+  <button class="secondary" onclick="guest()">Continue as Guest</button>
+
+  <div id="msg">Guest mode available</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCe9XkitxN6uQ4KKbhHbDKdZCTmist20ig",
+  authDomain: "gamehub-d60ca.firebaseapp.com",
+  projectId: "gamehub-d60ca",
+  storageBucket: "gamehub-d60ca.firebasestorage.app",
+  messagingSenderId: "826474557526",
+  appId: "1:826474557526:web:731c6609e724c81154cbf7"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const email = () => document.getElementById("email").value;
+const pass = () => document.getElementById("password").value;
+const msg = (t) => document.getElementById("msg").innerText = t;
+
+window.signUp = async function(){
+  try{
+    const user = await createUserWithEmailAndPassword(auth, email(), pass());
+    msg("Account created: " + user.user.email);
+  } catch(e){
+    msg(e.message);
+  }
+};
+
+window.signIn = async function(){
+  try{
+    const user = await signInWithEmailAndPassword(auth, email(), pass());
+    msg("Welcome: " + user.user.email);
+
+    localStorage.setItem("gamehub_user", JSON.stringify({
+      email: user.user.email,
+      uid: user.user.uid
+    }));
+
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 800);
+
+  } catch(e){
+    msg(e.message);
+  }
+};
+
+window.guest = function(){
+  localStorage.setItem("gamehub_guest", "true");
+  window.location.href = "index.html";
+};
+</script>
+
+</body>
+</html>
