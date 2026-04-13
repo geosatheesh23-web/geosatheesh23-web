@@ -1,31 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>More</title>
-  <link rel="stylesheet" href="assets/css/style.css">
+  <meta charset="UTF-8">
+  <title>More - GameHub</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
+
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
 <body>
 
-<div class="theme-controls">
-  <button id="themeToggle" class="theme-btn"></button>
-  <button id="themeReset" class="theme-reset">Reset</button>
-</div>
-  
 <header class="main-header">
   <div class="logo">🎮 GameHub</div>
 
-  <nav>
+  <nav class="nav">
     <a href="index.html">Home</a>
-    <a href="more.html">More</a>
+    <a href="more.html" class="active">More</a>
+
+    <button id="themeToggle" class="theme-toggle">🌙 Night</button>
   </nav>
 </header>
 
 <section class="hero">
   <h1>More Options</h1>
-  <p>Future updates, settings, and features will appear here.</p>
+  <p>Settings, updates, and system info for GameHub.</p>
 </section>
+
+<section class="features">
+
+  <div class="feature-card">
+    ⚙️ Settings
+    <p>Adjust theme, animations, and gameplay preferences.</p>
+  </div>
+
+  <div class="feature-card">
+    🌙 Theme System
+    <p>Switch between light and dark mode with smooth transitions.</p>
+  </div>
+
+  <div class="feature-card">
+    ⚡ Performance
+    <p>Optimized for fast loading and smooth gameplay on all devices.</p>
+  </div>
+
+  <div class="feature-card">
+    🔧 Future Updates
+    <p>More games, leaderboard system, and multiplayer coming soon.</p>
+  </div>
+
+</section>
+
+<section class="features">
+
+  <div class="feature-card">
+    ℹ️ About GameHub
+    <p>A lightweight web arcade built for quick, fun browser games.</p>
+  </div>
+
+  <div class="feature-card">
+    📱 Device Support
+    <p>Works on mobile, tablet, and desktop without installation.</p>
+  </div>
+
+</section>
+
+<footer class="footer">
+  <p>GameHub © 2026</p>
+</footer>
+
 <script src="assets/js/main.js"></script>
 </body>
 </html>
