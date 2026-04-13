@@ -312,27 +312,19 @@ function render() {
     bestEl.textContent = best;
 }
 
-/* INPUT - KEYBOARD */
-document.addEventListener("keydown", e => {
-    if (e.key === "ArrowLeft") move("left");
-    if (e.key === "ArrowRight") move("right");
-    if (e.key === "ArrowUp") move("up");
-    if (e.key === "ArrowDown") move("down");
-});
+/* INPUT - FIXED (REAL DRAG TRACKING) */
+let startX = 0;
+let startY = 0;
+let isDown = false;
 
-/* INPUT - FIXED DRAG (ALL 4 DIRECTIONS RELIABLE) */
-let startX = 0, startY = 0;
-let tracking = false;
-
-grid.addEventListener("pointerdown", e => {
-    tracking = true;
+grid.addEventListener("pointerdown", (e) => {
+    isDown = true;
     startX = e.clientX;
     startY = e.clientY;
 });
 
-grid.addEventListener("pointerup", e => {
-    if (!tracking) return;
-    tracking = false;
+grid.addEventListener("pointermove", (e) => {
+    if (!isDown) return;
 
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -340,15 +332,27 @@ grid.addEventListener("pointerup", e => {
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (Math.max(absX, absY) < 25) return;
+    // trigger once per drag (prevents spam)
+    if (absX < 40 && absY < 40) return;
+
+    isDown = false; // lock until next swipe
 
     if (absX > absY) {
-        if (dx > 0) move("right");
-        else move("left");
+        move(dx > 0 ? "right" : "left");
     } else {
-        if (dy > 0) move("down");
-        else move("up");
+        move(dy > 0 ? "down" : "up");
     }
+});
+
+grid.addEventListener("pointerup", () => {
+    isDown = false;
+});
+
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") move("left");
+    if (e.key === "ArrowRight") move("right");
+    if (e.key === "ArrowUp") move("up");
+    if (e.key === "ArrowDown") move("down");
 });
 
 newGame();
