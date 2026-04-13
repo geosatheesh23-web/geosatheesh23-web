@@ -1,25 +1,292 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Arena Pro</title>
+
+<style>
+body{
+  margin:0;
+  background:#0d0d0d;
+  color:#fff;
+  font-family:Arial;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+h1{margin:10px;}
+
+.topbar{
+  display:flex;
+  gap:10px;
+  margin:10px;
+}
+
+button{
+  padding:10px 15px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:#222;
+  color:#fff;
+}
+
+button.active{background:#4caf50;}
+
+.stats{
+  margin:10px;
+  text-align:center;
+}
+
+.grid{
+  display:grid;
+  gap:10px;
+  justify-content:center;
+  perspective:1000px;
+}
+
+.card{
+  width:70px;
+  height:70px;
+  position:relative;
+  transform-style:preserve-3d;
+  transition:transform 0.4s;
+  cursor:pointer;
+}
+
+.card.flip{
+  transform:rotateY(180deg);
+}
+
+.inner{
+  position:absolute;
+  width:100%;
+  height:100%;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  backface-visibility:hidden;
+}
+
+.front{background:#fff;color:#000;transform:rotateY(180deg);}
+.back{background:#222;}
+
+.card.matched{
+  animation:pop 0.3s ease;
+  background:#4caf50 !important;
+}
+
+@keyframes pop{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.2);}
+  100%{transform:scale(1);}
+}
+</style>
 </head>
 
 <body>
 
-<header class="main-header">
-  <div class="logo">🎮 GameHub</div>
+<h1>🧠 Memory Arena Pro</h1>
 
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="../more.html">More</a>
-  </nav>
-</header>
+<div class="topbar">
+  <button onclick="setMode('classic')" id="classicBtn">Classic</button>
+  <button onclick="setMode('timed')" id="timedBtn">Timed</button>
+  <button onclick="setMode('hardcore')" id="hardcoreBtn">Hardcore</button>
+</div>
 
-<section class="game-container">
-  <h2>Memory Card Match</h2>
-  <p>Game will be added here.</p>
-</section>
+<div class="stats">
+  Score: <span id="score">0</span> |
+  Combo: <span id="combo">0</span> |
+  Time: <span id="time">-</span><br>
+  High Score: <span id="high">0</span> |
+  Best Combo: <span id="bestCombo">0</span>
+</div>
+
+<div id="grid" class="grid"></div>
+
+<!-- sounds -->
+<audio id="flipSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+<audio id="matchSound" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
+<audio id="failSound" src="https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/2764/2764-preview.mp3"></audio>
+
+<script>
+let mode="classic";
+let gridSize=4;
+let cards=[];
+let flipped=[];
+let lock=false;
+
+let score=0;
+let combo=0;
+let time=60;
+let timer;
+
+const emojis=["🍎","🍌","🍇","🍉","🍒","🍍","🥝","🍑","🍋","🥥","🍓","🍈"];
+
+// sounds
+const flipS=document.getElementById("flipSound");
+const matchS=document.getElementById("matchSound");
+const failS=document.getElementById("failSound");
+const winS=document.getElementById("winSound");
+
+function setMode(m){
+  mode=m;
+  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+  document.getElementById(m+"Btn").classList.add("active");
+  startGame();
+}
+
+function startGame(){
+  clearInterval(timer);
+
+  score=0;
+  combo=0;
+  flipped=[];
+  lock=false;
+
+  if(mode==="classic") gridSize=4;
+  if(mode==="timed"){gridSize=4; time=60;}
+  if(mode==="hardcore") gridSize=6;
+
+  loadStats();
+  updateStats();
+
+  if(mode==="timed"){
+    timer=setInterval(()=>{
+      time--;
+      updateStats();
+      if(time<=0){
+        endGame("Time Up!");
+      }
+    },1000);
+  }
+
+  generateCards();
+}
+
+function generateCards(){
+  const total=gridSize*gridSize;
+  const pairs=total/2;
+
+  let picks=emojis.slice(0,pairs);
+  cards=[...picks,...picks].sort(()=>Math.random()-0.5);
+
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  grid.style.gridTemplateColumns=`repeat(${gridSize},1fr)`;
+
+  cards.forEach(val=>{
+    const card=document.createElement("div");
+    card.className="card";
+
+    card.innerHTML=`
+      <div class="inner back"></div>
+      <div class="inner front">${val}</div>
+    `;
+
+    card.dataset.value=val;
+    card.onclick=()=>flipCard(card);
+    grid.appendChild(card);
+  });
+}
+
+function flipCard(card){
+  if(lock || card.classList.contains("flip") || card.classList.contains("matched")) return;
+
+  flipS.currentTime=0; flipS.play();
+
+  card.classList.add("flip");
+  flipped.push(card);
+
+  if(flipped.length===2){
+    lock=true;
+
+    if(flipped[0].dataset.value===flipped[1].dataset.value){
+      matchS.play();
+
+      flipped.forEach(c=>c.classList.add("matched"));
+
+      combo++;
+      score+=10*combo;
+
+      flipped=[];
+      lock=false;
+
+      if(checkWin()){
+        winS.play();
+        setTimeout(()=>endGame("Level Cleared!"),500);
+      }
+
+    }else{
+      failS.play();
+      combo=0;
+
+      setTimeout(()=>{
+        flipped.forEach(c=>c.classList.remove("flip"));
+        flipped=[];
+        lock=false;
+      },700);
+    }
+
+    updateStats();
+  }
+}
+
+function updateStats(){
+  document.getElementById("score").textContent=score;
+  document.getElementById("combo").textContent=combo;
+  document.getElementById("time").textContent=mode==="timed"?time:"-";
+}
+
+function checkWin(){
+  return [...document.querySelectorAll(".card")]
+    .every(c=>c.classList.contains("matched"));
+}
+
+function endGame(msg){
+  clearInterval(timer);
+  saveStats();
+  setTimeout(()=>{
+    alert(msg);
+    nextLevel();
+  },300);
+}
+
+function nextLevel(){
+  if(mode!=="hardcore"){
+    gridSize=Math.min(gridSize+2,6);
+  }
+  startGame();
+}
+
+/* SAVE SYSTEM */
+
+function getKey(){
+  return "memory_"+mode;
+}
+
+function loadStats(){
+  let data=JSON.parse(localStorage.getItem(getKey()))||{high:0,bestCombo:0};
+  document.getElementById("high").textContent=data.high;
+  document.getElementById("bestCombo").textContent=data.bestCombo;
+}
+
+function saveStats(){
+  let data=JSON.parse(localStorage.getItem(getKey()))||{high:0,bestCombo:0};
+
+  if(score>data.high) data.high=score;
+  if(combo>data.bestCombo) data.bestCombo=combo;
+
+  localStorage.setItem(getKey(),JSON.stringify(data));
+}
+
+// start
+setMode("classic");
+</script>
 
 </body>
 </html>
