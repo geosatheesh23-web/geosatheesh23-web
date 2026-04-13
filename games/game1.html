@@ -20,14 +20,12 @@ body {
     min-height: 100vh;
 }
 
-/* HEADER */
 .main-header {
     position: sticky;
     top: 0;
     z-index: 1000;
 }
 
-/* GAME */
 #game {
     text-align: center;
     padding: 20px 10px 60px;
@@ -39,7 +37,6 @@ h1 {
     color: #776e65;
 }
 
-/* SCORE */
 .score-wrap {
     display: flex;
     justify-content: center;
@@ -55,7 +52,6 @@ h1 {
     font-weight: bold;
 }
 
-/* GRID */
 .grid {
     width: 360px;
     height: 360px;
@@ -64,6 +60,7 @@ h1 {
     border-radius: 12px;
     padding: 10px;
     position: relative;
+    touch-action: none;
 }
 
 .bg {
@@ -74,7 +71,6 @@ h1 {
     border-radius: 6px;
 }
 
-/* TILE */
 .tile {
     position: absolute;
     width: 75px;
@@ -88,7 +84,6 @@ h1 {
     transition: all 0.12s ease;
 }
 
-/* COLORS */
 .tile[data-v="2"] { background:#eee4da; }
 .tile[data-v="4"] { background:#ede0c8; }
 .tile[data-v="8"] { background:#f2b179; color:white; }
@@ -101,7 +96,6 @@ h1 {
 .tile[data-v="1024"] { background:#edc53f; color:white; }
 .tile[data-v="2048"] { background:#edc22e; color:white; }
 
-/* BUTTON */
 button {
     padding: 12px 25px;
     border: none;
@@ -112,7 +106,6 @@ button {
     cursor: pointer;
 }
 
-/* OVERLAY */
 .overlay {
     position: fixed;
     inset: 0;
@@ -129,7 +122,6 @@ button {
     text-align: center;
 }
 
-/* NAV ACTIONS */
 .nav-actions {
     display: flex;
     justify-content: center;
@@ -141,20 +133,17 @@ button {
 
 <body>
 
-<!-- HEADER (ONLY CHANGE = HOME ADDED) -->
 <header class="main-header">
   <div class="logo">🎮 GameHub</div>
 
   <nav class="nav">
     <a href="../index.html">Home</a>
     <a href="../more.html">More</a>
-    <a href="game2.html" class="active">2048</a>
   </nav>
 
   <div id="userStatus">Guest Mode</div>
 </header>
 
-<!-- GAME -->
 <div id="game">
 
 <h1>2048</h1>
@@ -173,7 +162,6 @@ button {
 
 </div>
 
-<!-- OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="popup">
         <h2 id="result"></h2>
@@ -185,10 +173,8 @@ button {
 <script>
 let board = [];
 let score = 0;
-let best = localStorage.getItem("best2048") || 0;
+let best = Number(localStorage.getItem("best2048") || 0);
 const SIZE = 4;
-let gameOver = false;
-let won = false;
 
 const grid = document.getElementById("grid");
 const scoreEl = document.getElementById("score");
@@ -201,8 +187,6 @@ const final = document.getElementById("final");
 function newGame() {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
     score = 0;
-    gameOver = false;
-    won = false;
     overlay.style.display = "none";
     spawn();
     spawn();
@@ -282,7 +266,9 @@ function checkGameOver() {
             if (i < 3 && board[i][j] === board[i + 1][j]) return;
         }
     }
-    show("Game Over");
+    overlay.style.display = "flex";
+    result.textContent = "Game Over";
+    final.textContent = "Score: " + score;
 }
 
 /* BEST */
@@ -326,13 +312,6 @@ function render() {
     bestEl.textContent = best;
 }
 
-/* OVERLAY */
-function show(text) {
-    result.textContent = text;
-    final.textContent = "Score: " + score;
-    overlay.style.display = "flex";
-}
-
 /* INPUT */
 document.addEventListener("keydown", e => {
     if (e.key === "ArrowLeft") move("left");
@@ -341,24 +320,31 @@ document.addEventListener("keydown", e => {
     if (e.key === "ArrowDown") move("down");
 });
 
-/* SWIPE */
-let sx = 0, sy = 0;
+/* DRAG CONTROLS */
+let startX = 0, startY = 0;
+let isDown = false;
 
-document.addEventListener("touchstart", e => {
-    sx = e.touches[0].clientX;
-    sy = e.touches[0].clientY;
-}, { passive: true });
+grid.addEventListener("pointerdown", e => {
+    isDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+});
 
-document.addEventListener("touchend", e => {
-    let dx = e.changedTouches[0].clientX - sx;
-    let dy = e.changedTouches[0].clientY - sy;
+grid.addEventListener("pointerup", e => {
+    if (!isDown) return;
+    isDown = false;
+
+    let dx = e.clientX - startX;
+    let dy = e.clientY - startY;
+
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
 
     if (Math.abs(dx) > Math.abs(dy)) {
         move(dx > 0 ? "right" : "left");
     } else {
         move(dy > 0 ? "down" : "up");
     }
-}, { passive: true });
+});
 
 newGame();
 </script>
