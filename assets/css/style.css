@@ -1,15 +1,15 @@
 /* ===============================
-   🌍 THEME SYSTEM
+   🌍 THEME SYSTEM (IMPROVED LIGHT MODE)
 =============================== */
 :root {
-  --bg: #ffffff;
-  --text: #111111;
+  --bg: #f7f9fc;
+  --text: #1a1a1a;
 
-  --card: #f2f2f2;
-  --border: #dddddd;
+  --card: #ffffff;
+  --border: #e2e8f0;
 
   --accent: #4da6ff;
-  --accent-glow: rgba(77,166,255,0.4);
+  --accent-glow: rgba(77,166,255,0.25);
 }
 
 [data-theme="dark"] {
@@ -19,35 +19,14 @@
   --card: #1a1a1a;
   --border: #333333;
 
-  --accent: #4da6ff;
   --accent-glow: rgba(77,166,255,0.6);
-}
-
-/* ===============================
-   🌊 BACKGROUND GLOW
-=============================== */
-body::before {
-  content: "";
-  position: fixed;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, var(--accent-glow), transparent 70%);
-  top: -200px;
-  left: -200px;
-  z-index: -1;
-  filter: blur(80px);
-  animation: floatGlow 10s infinite alternate ease-in-out;
-}
-
-@keyframes floatGlow {
-  from { transform: translate(0,0); }
-  to { transform: translate(100px, 100px); }
 }
 
 /* ===============================
    🧱 BASE
 =============================== */
 * {
+  box-sizing: border-box;
   transition: background 0.25s, color 0.25s, border 0.25s, box-shadow 0.25s, transform 0.2s;
 }
 
@@ -56,151 +35,193 @@ body {
   font-family: Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
-  opacity: 0;
-  animation: fadePage 0.4s ease forwards;
-}
-
-@keyframes fadePage {
-  to { opacity: 1; }
 }
 
 /* ===============================
-   🔝 HEADER
+   🔝 HEADER (FIXED ALIGNMENT)
 =============================== */
 .main-header {
-  background: var(--card);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+
   padding: 15px 25px;
-  display: flex;
-  justify-content: space-between;
+  background: var(--card);
   border-bottom: 1px solid var(--border);
 }
 
-.main-header a {
-  color: var(--text);
-  margin-left: 15px;
-  text-decoration: none;
+.logo {
+  font-weight: bold;
+  font-size: 18px;
 }
 
-.main-header a:hover {
+.main-header nav {
+  text-align: center;
+}
+
+.main-header nav a {
+  margin: 0 10px;
+  text-decoration: none;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.main-header nav a:hover {
+  opacity: 1;
   color: var(--accent);
 }
 
 /* ===============================
-   🚀 HERO
+   🎛️ THEME CONTROLS (FIXED)
+=============================== */
+.theme-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-btn, .theme-reset {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.theme-btn:hover,
+.theme-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ===============================
+   🚀 HERO (BETTER SPACING)
 =============================== */
 .hero {
   text-align: center;
-  padding: 70px 20px;
+  padding: 80px 20px 60px;
 }
 
 .hero h1 {
   font-size: 42px;
-  text-shadow: 0 0 12px var(--accent-glow);
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+
+.hero p {
+  opacity: 0.7;
+  margin-bottom: 20px;
 }
 
 /* ===============================
-   🔘 BUTTONS
+   🔘 BUTTONS (FIXED CONSISTENCY)
 =============================== */
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .btn {
-  padding: 10px 20px;
-  background: var(--accent);
-  color: white;
+  padding: 10px 18px;
   border-radius: 8px;
   text-decoration: none;
+  font-weight: 500;
+
+  background: var(--accent);
+  color: white;
+  border: none;
+
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
 .btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+
+.btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.btn.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ===============================
-   🎮 GAME GRID + CARDS
+   ✨ FEATURES (CLEANED)
+=============================== */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 15px;
+  padding: 30px;
+}
+
+.feature-card {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+/* ===============================
+   🎮 GRID
 =============================== */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   padding: 30px;
 }
 
+/* ===============================
+   🧩 CARDS (CLEAN + CONSISTENT)
+=============================== */
 .card {
   position: relative;
   background: var(--card);
-  padding: 25px;
-  border-radius: 14px;
+  padding: 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+
   border: 1px solid var(--border);
-  text-align: center;
   overflow: hidden;
 }
 
-/* Glow border animation */
-.card::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 16px;
-  background: linear-gradient(45deg, transparent, var(--accent), transparent);
-  opacity: 0;
-  transition: 0.3s;
-}
-
-.card:hover::before {
-  opacity: 1;
-}
-
-/* Hover lift */
 .card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-5px);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
 }
 
-/* ===============================
-   🎥 CARD PREVIEW (HOVER)
-=============================== */
-.card .preview {
+/* preview */
+.preview {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
   opacity: 0;
-  transition: 0.3s;
 }
 
 .card:hover .preview {
-  opacity: 0.15;
+  opacity: 0.12;
 }
 
 /* ===============================
-   🔘 THEME CONTROLS
+   🔚 FOOTER
 =============================== */
-.theme-controls {
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  display: flex;
-  gap: 10px;
-}
-
-.theme-btn {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background: var(--card);
-  border: 1px solid var(--border);
-  cursor: pointer;
-}
-
-.theme-btn:hover {
-  box-shadow: 0 0 12px var(--accent-glow);
-}
-
-.theme-reset {
-  padding: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  cursor: pointer;
+.footer {
+  text-align: center;
+  padding: 20px;
+  opacity: 0.6;
 }
 
 /* ===============================
@@ -210,13 +231,13 @@ body {
   position: fixed;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
   background: var(--accent);
+  border-radius: 50%;
   pointer-events: none;
-  animation: clickAnim 0.4s ease-out forwards;
+  animation: click 0.4s forwards;
 }
 
-@keyframes clickAnim {
+@keyframes click {
   to {
     transform: scale(10);
     opacity: 0;
