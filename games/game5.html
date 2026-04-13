@@ -1,25 +1,241 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPS 5 Arena Final</title>
+
+<style>
+body{
+  margin:0;
+  background:#0d0d0d;
+  color:#fff;
+  font-family:Arial;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+h1{margin:10px;}
+
+.rules{
+  text-align:center;
+  margin:10px;
+}
+
+.rule-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin:5px;
+  font-size:14px;
+}
+
+.icon{
+  width:30px;
+}
+
+.choices{
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  justify-content:center;
+  margin:20px;
+}
+
+.choice{
+  width:80px;
+  height:80px;
+  background:#1a1a1a;
+  border-radius:15px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.choice:hover{
+  transform:scale(1.1);
+  background:#2a2a2a;
+}
+
+.choice img{
+  width:50px;
+  pointer-events:none;
+}
+
+.cooldown{
+  opacity:0.4;
+  pointer-events:none;
+}
+
+.result{
+  margin:10px;
+  font-size:18px;
+  text-align:center;
+}
+
+.stats{
+  text-align:center;
+  margin:10px;
+}
+
+.shake{animation:shake 0.3s;}
+@keyframes shake{
+  0%{transform:translateX(0);}
+  25%{transform:translateX(-5px);}
+  50%{transform:translateX(5px);}
+  75%{transform:translateX(-5px);}
+  100%{transform:translateX(0);}
+}
+</style>
 </head>
 
 <body>
 
-<header class="main-header">
-  <div class="logo">🎮 GameHub</div>
+<h1>⚔️ RPS 5 Arena</h1>
 
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="../more.html">More</a>
-  </nav>
-</header>
+<div class="rules" id="rules"></div>
 
-<section class="game-container">
-  <h2>Rock Paper Scissors</h2>
-  <p>Game will be added here.</p>
-</section>
+<div id="choices" class="choices"></div>
+
+<div id="result" class="result">Make your move</div>
+
+<div class="stats">
+Score: <span id="score">0</span> |
+Streak: <span id="streak">0</span> |
+Wins: <span id="wins">0</span>
+</div>
+
+<script>
+const moves=["rock","paper","scissors","lightning","umbrella"];
+
+const icons={
+  rock:"https://cdn-icons-png.flaticon.com/512/616/616494.png",
+  paper:"https://cdn-icons-png.flaticon.com/512/2541/2541988.png",
+  scissors:"https://cdn-icons-png.flaticon.com/512/2541/2541970.png",
+  lightning:"https://cdn-icons-png.flaticon.com/512/616/616490.png",
+  umbrella:"https://cdn-icons-png.flaticon.com/512/414/414974.png"
+};
+
+const beats={
+  rock:["scissors","umbrella"],
+  paper:["rock","lightning"],
+  scissors:["paper","umbrella"],
+  lightning:["scissors","rock"],
+  umbrella:["paper","lightning"]
+};
+
+let score=0, streak=0, wins=0;
+let lock=false;
+let history=[];
+
+/* INIT UI */
+
+function init(){
+  const c=document.getElementById("choices");
+  const r=document.getElementById("rules");
+
+  moves.forEach(m=>{
+    let d=document.createElement("div");
+    d.className="choice";
+    d.innerHTML=`<img src="${icons[m]}">`;
+    d.onclick=()=>play(m);
+    c.appendChild(d);
+
+    // RULE DISPLAY
+    let row=document.createElement("div");
+    row.className="rule-row";
+
+    row.innerHTML = `
+      <img class="icon" src="${icons[m]}">
+      →
+      <img class="icon" src="${icons[beats[m][0]]}">
+      <img class="icon" src="${icons[beats[m][1]]}">
+    `;
+
+    r.appendChild(row);
+  });
+}
+
+/* GAME */
+
+function play(player){
+  if(lock) return;
+  lock=true;
+
+  history.push(player);
+  let ai=aiMove();
+
+  let result;
+
+  if(player===ai){
+    result="Draw";
+    streak=0;
+  }
+  else if(beats[player].includes(ai)){
+    result="Win";
+    streak++;
+    score+=10*(streak||1);
+    wins++;
+  }
+  else{
+    result="Lose";
+    streak=0;
+    document.body.classList.add("shake");
+    setTimeout(()=>document.body.classList.remove("shake"),300);
+  }
+
+  document.getElementById("result").innerHTML=
+    `You: <img src="${icons[player]}" width="30"> vs 
+     <img src="${icons[ai]}" width="30"> → ${result}`;
+
+  updateStats();
+  cooldown();
+}
+
+/* AI */
+
+function aiMove(){
+  if(history.length<3) return random();
+
+  let freq={};
+  moves.forEach(m=>freq[m]=0);
+  history.forEach(m=>freq[m]++);
+
+  let predicted = moves.reduce((a,b)=>freq[a]>freq[b]?a:b);
+
+  let counters = moves.filter(m=>beats[m].includes(predicted));
+
+  if(Math.random()<0.25) return random();
+
+  return counters[Math.floor(Math.random()*counters.length)];
+}
+
+function random(){
+  return moves[Math.floor(Math.random()*moves.length)];
+}
+
+/* UTIL */
+
+function cooldown(){
+  let c=document.getElementById("choices");
+  c.classList.add("cooldown");
+  setTimeout(()=>{
+    c.classList.remove("cooldown");
+    lock=false;
+  },500);
+}
+
+function updateStats(){
+  document.getElementById("score").textContent=score;
+  document.getElementById("streak").textContent=streak;
+  document.getElementById("wins").textContent=wins;
+}
+
+init();
+</script>
 
 </body>
 </html>
