@@ -27,7 +27,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  perspective: 900px; /* safe global perspective */
+  perspective: 900px;
 }
 
 /* HEADER */
@@ -70,11 +70,6 @@ body {
   cursor: pointer;
 }
 
-.theme-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /* HERO */
 .hero {
   text-align: center;
@@ -107,23 +102,56 @@ body {
   color: var(--text);
 }
 
-/* FEATURES */
-.features {
-  display: flex;
-  justify-content: center;
+/* ✅ FIX: HOMEPAGE GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   padding: 30px;
-  flex-wrap: wrap;
 }
 
-.feature-card {
-  background: var(--card);
-  padding: 15px 20px;
-  border-radius: 8px;
+/* ✅ FIX: CARD STYLE BACK */
+.card {
+  position: relative;
+  height: 180px;
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  color: white;
   border: 1px solid var(--border);
+  display: block;
 }
 
-/* GAME GRID (SAFE - NO GLOBAL BREAKING) */
+/* PREVIEW IMAGE */
+.preview {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+}
+
+/* CARD TEXT */
+.card-content {
+  position: absolute;
+  bottom: 0;
+  padding: 15px;
+  z-index: 2;
+}
+
+/* HOVER EFFECT */
+.card:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* GAME GRID (ISOLATED – DOES NOT BREAK HOME) */
 #game .grid {
   width: 360px;
   height: 360px;
@@ -138,7 +166,7 @@ body {
   touch-action: none;
 }
 
-/* BACKGROUND TILE */
+/* GAME BACKGROUND TILE */
 #game .bg {
   position: absolute;
   width: 75px;
@@ -149,7 +177,7 @@ body {
   opacity: 0.6;
 }
 
-/* TILE */
+/* GAME TILE */
 #game .tile {
   position: absolute;
   width: 75px;
@@ -179,7 +207,7 @@ body {
 .tile[data-v="1024"] { background:#edc53f; color:white; }
 .tile[data-v="2048"] { background:#edc22e; color:white; }
 
-/* BUTTONS */
+/* BUTTON */
 button {
   padding: 12px 25px;
   border: none;
