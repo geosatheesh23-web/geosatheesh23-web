@@ -66,3 +66,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+// ===============================
+// ✨ CLICK EFFECT
+// ===============================
+document.addEventListener("click", (e) => {
+  const el = document.createElement("div");
+  el.className = "click-effect";
+  el.style.left = e.clientX + "px";
+  el.style.top = e.clientY + "px";
+  document.body.appendChild(el);
+
+  setTimeout(() => el.remove(), 400);
+});
+
+
+// ===============================
+// 🚀 PAGE TRANSITION (smooth navigation)
+// ===============================
+document.querySelectorAll("a").forEach(link => {
+  if (link.href && link.hostname === location.hostname) {
+    link.addEventListener("click", function(e) {
+      e.preventDefault();
+      document.body.style.opacity = 0;
+
+      setTimeout(() => {
+        window.location = link.href;
+      }, 200);
+    });
+  }
+});
