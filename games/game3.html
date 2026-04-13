@@ -48,19 +48,6 @@ canvas{width:100%;background:#000;border-radius:8px}
 </head>
 
 <body>
-  <header class="main-header">
-  <div class="logo">🎮 GameHub</div>
-
-  <nav class="nav">
-    <a href="index.html" class="active">Home</a>
-    <a href="more.html">More</a>
-
-    <button id="themeToggle" class="theme-toggle">🌙 Night</button>
-
-    <a href="login.html">Login</a>
-  </nav>
-  <div id="userStatus">Loading...</div>
-</header>
 
 <div class="left">
 <canvas id="graph" height="200"></canvas>
@@ -71,6 +58,7 @@ canvas{width:100%;background:#000;border-radius:8px}
 
 <div class="center">
 <div class="topbar">
+<button onclick="window.location.href='../index.html'">🏠 Home</button>
 <select id="mode">
 <option value="classic">Classic</option>
 <option value="rush">Rush</option>
