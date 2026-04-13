@@ -381,21 +381,33 @@ function render() {
     for (let i = 0; i < SIZE; i++) {
         for (let j = 0; j < SIZE; j++) {
 
+            // BACKGROUND CELL (3D BASE)
             let bg = document.createElement("div");
             bg.className = "bg";
             bg.style.left = j * 85 + "px";
             bg.style.top = i * 85 + "px";
+            bg.style.transform = "translateZ(-30px)";
             grid.appendChild(bg);
 
             let val = board[i][j];
+
             if (val !== 0) {
                 let tile = document.createElement("div");
                 tile.className = "tile";
                 tile.textContent = val;
+
                 tile.dataset.v = val;
 
+                // MAIN POSITION
                 tile.style.left = j * 85 + "px";
                 tile.style.top = i * 85 + "px";
+
+                // 🔥 3D LIFT EFFECT (NO LOGIC CHANGE)
+                let depth = Math.log2(val) * 2;
+
+                tile.style.transform = `
+                    translateZ(${depth}px)
+                `;
 
                 grid.appendChild(tile);
             }
@@ -405,7 +417,6 @@ function render() {
     scoreEl.textContent = score;
     bestEl.textContent = best;
 }
-
 /* =========================
    OVERLAY
    ========================= */
