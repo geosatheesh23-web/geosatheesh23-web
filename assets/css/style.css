@@ -102,7 +102,53 @@ body {
   color: var(--text);
 }
 
-/* ✅ FIX: HOMEPAGE GRID */
+/* =========================
+   ✅ FEATURES FIXED
+========================= */
+.features {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 20px;
+
+  max-width: 900px;
+  margin: 0 auto;
+
+  padding: 30px 20px;
+}
+
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  padding: 18px 22px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  text-align: center;
+
+  min-width: 180px;
+  flex: 0 0 auto;
+
+  font-weight: 500;
+
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.feature-card:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 10px 25px var(--accent-glow);
+  border-color: var(--accent);
+}
+
+/* =========================
+   HOMEPAGE GRID
+========================= */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -110,8 +156,7 @@ body {
   padding: 30px;
 }
 
-/* ✅ FIX: CARD STYLE BACK */
-/* FORCE CARD STRUCTURE FIX */
+/* CARD */
 .card {
   position: relative;
   height: 180px;
@@ -123,7 +168,6 @@ body {
   display: block;
 }
 
-/* FIX IMAGE VISIBILITY */
 .preview {
   position: absolute;
   inset: 0;
@@ -132,7 +176,6 @@ body {
   z-index: 1;
 }
 
-/* DARK OVERLAY */
 .preview::after {
   content: "";
   position: absolute;
@@ -140,7 +183,6 @@ body {
   background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
 }
 
-/* TEXT ALWAYS ON TOP */
 .card-content {
   position: absolute;
   bottom: 0;
@@ -148,13 +190,14 @@ body {
   z-index: 2;
 }
 
-/* HOVER */
 .card:hover {
   transform: scale(1.04);
   box-shadow: 0 0 20px var(--accent-glow);
 }
 
-/* GAME GRID (ISOLATED – DOES NOT BREAK HOME) */
+/* =========================
+   GAME GRID (SAFE)
+========================= */
 #game .grid {
   width: 360px;
   height: 360px;
@@ -169,7 +212,6 @@ body {
   touch-action: none;
 }
 
-/* GAME BACKGROUND TILE */
 #game .bg {
   position: absolute;
   width: 75px;
@@ -180,7 +222,6 @@ body {
   opacity: 0.6;
 }
 
-/* GAME TILE */
 #game .tile {
   position: absolute;
   width: 75px;
