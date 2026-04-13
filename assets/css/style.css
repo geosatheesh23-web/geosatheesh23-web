@@ -111,6 +111,7 @@ body {
 }
 
 /* ✅ FIX: CARD STYLE BACK */
+/* FORCE CARD STRUCTURE FIX */
 .card {
   position: relative;
   height: 180px;
@@ -122,14 +123,16 @@ body {
   display: block;
 }
 
-/* PREVIEW IMAGE */
+/* FIX IMAGE VISIBILITY */
 .preview {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
+  z-index: 1;
 }
 
+/* DARK OVERLAY */
 .preview::after {
   content: "";
   position: absolute;
@@ -137,7 +140,7 @@ body {
   background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
 }
 
-/* CARD TEXT */
+/* TEXT ALWAYS ON TOP */
 .card-content {
   position: absolute;
   bottom: 0;
@@ -145,7 +148,7 @@ body {
   z-index: 2;
 }
 
-/* HOVER EFFECT */
+/* HOVER */
 .card:hover {
   transform: scale(1.04);
   box-shadow: 0 0 20px var(--accent-glow);
