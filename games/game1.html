@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2048 - Clean</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+<title>2048 - GameHub</title>
 
 <style>
 * {
@@ -14,44 +15,53 @@
 
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #faf8ef;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    font-family: "Segoe UI", Arial;
+    background: linear-gradient(135deg, #faf8ef, #e6ded2);
+    min-height: 100vh;
 }
 
+/* HEADER */
+.main-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+/* GAME */
 #game {
     text-align: center;
+    padding: 20px 10px 60px;
 }
 
 h1 {
-    font-size: 60px;
+    font-size: 64px;
     margin: 10px 0;
     color: #776e65;
 }
 
+/* SCORE */
 .score-wrap {
     display: flex;
     justify-content: center;
     gap: 15px;
+    margin-top: 10px;
 }
 
 .score-box {
     background: #bbada0;
-    color: #fff;
-    padding: 10px 15px;
+    color: white;
+    padding: 12px 20px;
     border-radius: 8px;
     font-weight: bold;
 }
 
+/* GRID */
 .grid {
     width: 360px;
     height: 360px;
-    margin: 20px auto;
+    margin: 25px auto;
     background: #bbada0;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 10px;
     position: relative;
 }
@@ -64,19 +74,22 @@ h1 {
     border-radius: 6px;
 }
 
+/* TILE */
 .tile {
     position: absolute;
     width: 75px;
     height: 75px;
-    background: #eee4da;
     border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 26px;
     font-weight: bold;
+    font-size: 26px;
+    transition: all 0.12s ease;
 }
 
+/* COLORS */
+.tile[data-v="2"] { background:#eee4da; }
 .tile[data-v="4"] { background:#ede0c8; }
 .tile[data-v="8"] { background:#f2b179; color:white; }
 .tile[data-v="16"] { background:#f59563; color:white; }
@@ -88,9 +101,9 @@ h1 {
 .tile[data-v="1024"] { background:#edc53f; color:white; }
 .tile[data-v="2048"] { background:#edc22e; color:white; }
 
+/* BUTTON */
 button {
-    margin-top: 10px;
-    padding: 10px 18px;
+    padding: 12px 25px;
     border: none;
     border-radius: 8px;
     background: #8f7a66;
@@ -99,63 +112,97 @@ button {
     cursor: pointer;
 }
 
+/* OVERLAY */
 .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
     display: none;
+    background: rgba(0,0,0,0.6);
     justify-content: center;
     align-items: center;
 }
 
 .popup {
     background: white;
-    padding: 30px;
+    padding: 40px;
     border-radius: 10px;
     text-align: center;
+}
+
+/* NAV ACTIONS */
+.nav-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- HEADER (ONLY CHANGE = HOME ADDED) -->
+<header class="main-header">
+  <div class="logo">🎮 GameHub</div>
+
+  <nav class="nav">
+    <a href="../index.html">Home</a>
+    <a href="../more.html">More</a>
+    <a href="game2.html" class="active">2048</a>
+  </nav>
+
+  <div id="userStatus">Guest Mode</div>
+</header>
+
+<!-- GAME -->
 <div id="game">
-    <h1>2048</h1>
 
-    <div class="score-wrap">
-        <div class="score-box">Score <span id="score">0</span></div>
-        <div class="score-box">Best <span id="best">0</span></div>
-    </div>
+<h1>2048</h1>
 
-    <div class="grid" id="grid"></div>
-
-    <button onclick="newGame()">New Game</button>
+<div class="nav-actions">
+  <button onclick="window.location.href='../index.html'">🏠 Home</button>
+  <button onclick="newGame()">New Game</button>
 </div>
 
+<div class="score-wrap">
+    <div class="score-box">Score<br><span id="score">0</span></div>
+    <div class="score-box">Best<br><span id="best">0</span></div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+</div>
+
+<!-- OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="popup">
-        <h2 id="msg"></h2>
+        <h2 id="result"></h2>
         <p id="final"></p>
         <button onclick="newGame()">Play Again</button>
     </div>
 </div>
 
 <script>
-let board, score = 0;
+let board = [];
+let score = 0;
 let best = localStorage.getItem("best2048") || 0;
 const SIZE = 4;
+let gameOver = false;
+let won = false;
 
 const grid = document.getElementById("grid");
 const scoreEl = document.getElementById("score");
 const bestEl = document.getElementById("best");
 const overlay = document.getElementById("overlay");
-const msg = document.getElementById("msg");
+const result = document.getElementById("result");
 const final = document.getElementById("final");
 
 /* INIT */
 function newGame() {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
     score = 0;
+    gameOver = false;
+    won = false;
     overlay.style.display = "none";
     spawn();
     spawn();
@@ -165,15 +212,12 @@ function newGame() {
 /* SPAWN */
 function spawn() {
     let empty = [];
-
     for (let i = 0; i < SIZE; i++) {
         for (let j = 0; j < SIZE; j++) {
             if (board[i][j] === 0) empty.push({ i, j });
         }
     }
-
     if (!empty.length) return;
-
     let spot = empty[Math.floor(Math.random() * empty.length)];
     board[spot.i][spot.j] = Math.random() < 0.9 ? 2 : 4;
 }
@@ -181,7 +225,6 @@ function spawn() {
 /* SLIDE */
 function slide(row) {
     row = row.filter(v => v);
-
     for (let i = 0; i < row.length - 1; i++) {
         if (row[i] === row[i + 1]) {
             row[i] *= 2;
@@ -189,7 +232,6 @@ function slide(row) {
             row[i + 1] = 0;
         }
     }
-
     return row.filter(v => v);
 }
 
@@ -207,27 +249,19 @@ function move(dir) {
     const setCol = (j, col) => col.forEach((v, i) => newB[i][j] = v);
 
     if (dir === "left") {
-        for (let i = 0; i < SIZE; i++) {
-            newB[i] = pad(slide(newB[i]));
-        }
+        for (let i = 0; i < SIZE; i++) newB[i] = pad(slide(newB[i]));
     }
 
     if (dir === "right") {
-        for (let i = 0; i < SIZE; i++) {
-            newB[i] = pad(slide([...newB[i]].reverse()).reverse());
-        }
+        for (let i = 0; i < SIZE; i++) newB[i] = pad(slide([...newB[i]].reverse()).reverse());
     }
 
     if (dir === "up") {
-        for (let j = 0; j < SIZE; j++) {
-            setCol(j, pad(slide(getCol(j))));
-        }
+        for (let j = 0; j < SIZE; j++) setCol(j, pad(slide(getCol(j))));
     }
 
     if (dir === "down") {
-        for (let j = 0; j < SIZE; j++) {
-            setCol(j, pad(slide(getCol(j).reverse()).reverse()));
-        }
+        for (let j = 0; j < SIZE; j++) setCol(j, pad(slide(getCol(j).reverse()).reverse()));
     }
 
     if (JSON.stringify(newB) !== old) {
@@ -294,7 +328,7 @@ function render() {
 
 /* OVERLAY */
 function show(text) {
-    msg.textContent = text;
+    result.textContent = text;
     final.textContent = "Score: " + score;
     overlay.style.display = "flex";
 }
@@ -320,15 +354,12 @@ document.addEventListener("touchend", e => {
     let dy = e.changedTouches[0].clientY - sy;
 
     if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 0) move("right");
-        else move("left");
+        move(dx > 0 ? "right" : "left");
     } else {
-        if (dy > 0) move("down");
-        else move("up");
+        move(dy > 0 ? "down" : "up");
     }
 }, { passive: true });
 
-/* START */
 newGame();
 </script>
 
