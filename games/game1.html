@@ -312,7 +312,7 @@ function render() {
     bestEl.textContent = best;
 }
 
-/* INPUT */
+/* INPUT - KEYBOARD */
 document.addEventListener("keydown", e => {
     if (e.key === "ArrowLeft") move("left");
     if (e.key === "ArrowRight") move("right");
@@ -320,29 +320,34 @@ document.addEventListener("keydown", e => {
     if (e.key === "ArrowDown") move("down");
 });
 
-/* DRAG CONTROLS */
+/* INPUT - FIXED DRAG (ALL 4 DIRECTIONS RELIABLE) */
 let startX = 0, startY = 0;
-let isDown = false;
+let tracking = false;
 
 grid.addEventListener("pointerdown", e => {
-    isDown = true;
+    tracking = true;
     startX = e.clientX;
     startY = e.clientY;
 });
 
 grid.addEventListener("pointerup", e => {
-    if (!isDown) return;
-    isDown = false;
+    if (!tracking) return;
+    tracking = false;
 
-    let dx = e.clientX - startX;
-    let dy = e.clientY - startY;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
 
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
 
-    if (Math.abs(dx) > Math.abs(dy)) {
-        move(dx > 0 ? "right" : "left");
+    if (Math.max(absX, absY) < 25) return;
+
+    if (absX > absY) {
+        if (dx > 0) move("right");
+        else move("left");
     } else {
-        move(dy > 0 ? "down" : "up");
+        if (dy > 0) move("down");
+        else move("up");
     }
 });
 
